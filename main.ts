@@ -1,0 +1,142 @@
+import * as THREE from 'three'
+import initJolt from 'jolt-physics'
+import {
+  buildRagdollFromBlueprint,
+  PartBlueprint,
+} from './utils/rig_blueprint'
+import {
+  addToThreeScene,
+  camera,
+  initRenderer,
+  render,
+  visualizeJointLimits,
+} from './utils/visualization'
+import {
+  physicsSystem,
+  initWorld,
+  updatePhysics,
+  createFloor,
+} from './utils/world'
+import { createJointControls } from './utils/joint_control'
+
+window.addEventListener('DOMContentLoaded', () => {
+  initJolt().then(function (Jolt) {
+    initRenderer()
+    initWorld(Jolt)
+
+    const floorBody = createFloor()
+    addToThreeScene(floorBody, 0x888888)
+
+    // Timers
+    const clock = new THREE.Clock()
+    let time = 0
+
+    // Blueprint for minimal skeleton: upper arm and lower arm
+    const blueprint: PartBlueprint = {
+      name: 'Upper-Arm',
+      shape: new Jolt.BoxShape(
+        new Jolt.Vec3(0.1, 0.05, 0.2)
+      ),
+      // shape: new Jolt.CapsuleShape(0.15, 0.06),
+      position: [0, 0.6, 0],
+      yprRotation: [0, -20, 0],
+      children: [
+        {
+          name: 'Lower-Arm',
+          // shape: new Jolt.CapsuleShape(0.15, 0.05),
+          shape: new Jolt.BoxShape(
+            new Jolt.Vec3(0.02, 0.05, 0.2)
+          ),
+          joint: {
+            // 1
+            positionA: [0, 0, 0.2],
+            positionB: [0, 0, -0.2],
+            yprAxes: [10, 40, 20],
+            yprLimits: [40, 90, 20],
+          },
+          children: [
+            {
+              name: 'Hand',
+              // shape: new Jolt.CapsuleShape(0.15, 0.05),
+              shape: new Jolt.BoxShape(
+                new Jolt.Vec3(0.01, 0.02, 0.1)
+              ),
+              joint: {
+                // 1
+                positionA: [0, 0, 0.2],
+                positionB: [0, 0, -0.1],
+                yprAxes: [10, 40, 0],
+                yprLimits: [40, 90, 20],
+              },
+            },
+          ],
+        },
+      ],
+    }
+
+    // Use the blueprint utility
+    const { processedBlueprint, ragdoll, bodies, joints } =
+      buildRagdollFromBlueprint(
+        Jolt,
+        blueprint,
+        physicsSystem,
+        1
+      )
+
+    if (!ragdoll) return
+
+    // Add joint motor sliders UI
+    createJointControls(
+      Object.entries(joints).map(([name, joint]) => ({
+        name,
+        joint,
+      }))
+    )
+
+    // Recursively add bodies to Three.js scene using blueprint and bodies map
+    const meshes: Record<string, THREE.Mesh> = {}
+    processedBlueprint.forEach((part) => {
+      const body = bodies[part.name]
+      if (body) {
+        const mesh = addToThreeScene(body, 0xff00ff)
+        mesh.traverse((obj: any) => {
+          if (obj.material) {
+            obj.material.transparent = true
+            obj.material.opacity = 0.3
+            obj.material.depthWrite = false
+          }
+        })
+        meshes[part.name] = mesh
+
+        // If this part has a joint, visualize its limits at the joint anchor
+        if (part.joint) {
+          visualizeJointLimits(
+            meshes[part.parent!.name],
+            part.joint
+          )
+        }
+      }
+    })
+
+    // ragdoll.SetLinearAndAngularVelocity(
+    //   new Jolt.Vec3(),
+    //   new Jolt.Vec3(0, 90, 0),
+    //   false
+    // )
+
+    camera.position.z = 4
+    camera.position.y = 1.5
+
+    // Animation loop
+    function animate() {
+      requestAnimationFrame(animate)
+
+      let deltaTime = clock.getDelta()
+      deltaTime = Math.min(deltaTime, 1.0 / 30.0)
+
+      updatePhysics(deltaTime)
+      render(deltaTime)
+    }
+    animate()
+  })
+})
