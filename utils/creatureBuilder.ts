@@ -192,6 +192,8 @@ export function buildRagdollFromBlueprint(
       constraint.mPlaneHalfConeAngle = degToRad(
         joint.yprLimits[1]
       )
+
+      constraint.mMaxFrictionTorque = 0.2
     }
 
     settingsPart.mMotionType = Jolt.EMotionType_Dynamic
@@ -213,6 +215,7 @@ export function buildRagdollFromBlueprint(
   ragdoll.AddToPhysicsSystem(Jolt.EActivation_Activate)
 
   // Map part names to bodies and joints
+  const parts: Record<string, Part> = {}
   const bodies: Record<string, JoltType.Body> = {}
   const joints: Record<
     string,
@@ -230,6 +233,7 @@ export function buildRagdollFromBlueprint(
       joint: jointBP,
       children: childrenBps,
     } = partBp
+
     const body = physicsSystem
       .GetBodyLockInterfaceNoLock()
       .TryGetBody(ragdoll.GetBodyID(idx))
@@ -241,14 +245,19 @@ export function buildRagdollFromBlueprint(
       parent,
     }
 
+    parts[name] = part
+
     if (jointBP) {
       const joint = Jolt.castObject(
         ragdoll.GetConstraint(idx - 1),
         Jolt.SwingTwistConstraint
       )
       joints[name] = joint
-      joint.SetSwingMotorState(Jolt.EMotorState_Velocity)
-      joint.SetTwistMotorState(Jolt.EMotorState_Velocity)
+      joint.SetMaxFrictionTorque
+      joint.SetSwingMotorState(Jolt.EMotorState_Off)
+      joint.SetTwistMotorState(Jolt.EMotorState_Off)
+      // joint.SetSwingMotorState(Jolt.EMotorState_Velocity)
+      // joint.SetTwistMotorState(Jolt.EMotorState_Velocity)
 
       part.joint = joint
     }
@@ -269,6 +278,7 @@ export function buildRagdollFromBlueprint(
   return {
     creature,
     ragdoll,
+    parts,
     bodies,
     joints,
   }

@@ -55,6 +55,7 @@ export type RootPart = Omit<Part, 'parent' | 'joint'>
 export interface BuildResult {
   creature: RootPart
   ragdoll: JoltType.Ragdoll | null
+  parts: Record<string, Part>
   bodies: Record<string, JoltType.Body>
   joints: Record<string, JoltType.SwingTwistConstraint>
 }

@@ -1,11 +1,9 @@
+import { Part } from './types'
 import { bodyInterface, Jolt } from './world'
 import JoltType from 'jolt-physics'
 
 export function createJointControls(
-  joints: Array<{
-    name: string
-    joint: JoltType.SwingTwistConstraint
-  }>
+  parts: Record<string, Part>
 ) {
   let panel = document.getElementById(
     'joint-motor-panel'
@@ -48,7 +46,14 @@ export function createJointControls(
     },
   ]
 
-  joints.forEach(({ name, joint }) => {
+  for (const name in parts) {
+    const part = parts[name]
+
+    const parent = part.parent!
+    const joint = part.joint!
+
+    if (!parent || !joint) continue
+
     const jointDiv = panel.appendChild(
       document.createElement('div')
     )
@@ -115,5 +120,5 @@ export function createJointControls(
           update()
         }
     })
-  })
+  }
 }

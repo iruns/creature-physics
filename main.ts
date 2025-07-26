@@ -50,7 +50,7 @@ window.addEventListener('DOMContentLoaded', () => {
             parentOffset: [0, 0, 0.2],
             childOffset: [0, 0, -0.2],
             yprAxes: [10, 40, 20],
-            yprLimits: [40, 90, 20],
+            yprLimits: [40, 20, 20],
           },
           children: [
             {
@@ -64,7 +64,7 @@ window.addEventListener('DOMContentLoaded', () => {
                 parentOffset: [0, 0, 0.2],
                 childOffset: [0, 0, -0.1],
                 yprAxes: [10, 40, 0],
-                yprLimits: [40, 90, 20],
+                yprLimits: [40, 20, 20],
               },
             },
           ],
@@ -73,18 +73,13 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // Use the blueprint utility
-    const { creature, ragdoll, bodies, joints } =
+    const { creature, ragdoll, parts, bodies, joints } =
       buildRagdollFromBlueprint(blueprint, physicsSystem, 1)
 
     if (!ragdoll) return
 
     // Add joint motor sliders UI
-    createJointControls(
-      Object.entries(joints).map(([name, joint]) => ({
-        name,
-        joint,
-      }))
-    )
+    createJointControls(parts)
 
     // Recursively add bodies to Three.js scene using blueprint and bodies map
     const threeObjs: Record<string, THREE.Mesh> = {}
