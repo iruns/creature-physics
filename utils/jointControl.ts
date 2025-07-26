@@ -1,7 +1,16 @@
+import { defaultJointBp } from './creatureBuilder'
+import {
+  exponentiate,
+  toThreeQuat,
+  toThreeVec3,
+  weakenBy,
+} from './math'
 import { Part } from './types'
 import { bodyInterface, Jolt } from './world'
+import * as THREE from 'three'
 
 // Store per-part torques to be applied each frame
+// Change: Part.torques is Record<string, THREE.Vector3>
 export function createJointControls(
   parts: Record<string, Part>
 ) {
@@ -26,37 +35,17 @@ export function createJointControls(
     panel.innerHTML = ''
   }
 
-  const torqueAmount = 0.3 // Adjust for strength
-
-  const axisConfigs: {
-    axis: string
-    a: number
-  }[] = [
-    {
-      axis: 'Yaw',
-      a: 1,
-    },
-    {
-      axis: 'Pitch',
-      a: 0,
-    },
-    {
-      axis: 'Roll',
-      a: 2,
-    },
+  const axisConfigs: { label: string; axis: number }[] = [
+    { label: 'Yaw', axis: 1 },
+    { label: 'Pitch', axis: 0 },
+    { label: 'Roll', axis: 2 },
   ]
 
   for (const name in parts) {
     const part = parts[name]
-
     const parent = part.parent!
     const joint = part.joint!
-
     if (!parent || !joint) continue
-
-    // Initialize per-part torque accumulators if not present
-    if (!part.torques) part.torques = {}
-    if (!parent.torques) parent.torques = {}
 
     const jointDiv = panel.appendChild(
       document.createElement('div')
@@ -64,46 +53,7 @@ export function createJointControls(
     jointDiv.style.marginBottom = '10px'
     jointDiv.innerHTML = `<div style="margin-bottom:2px;"><b>${name}</b></div>`
 
-    const torqueVec3: [number, number, number] = [0, 0, 0]
-    function update() {
-      bodyInterface.ActivateConstraint(joint)
-
-      // Compute torque in local part space, then rotate to world space
-      const partQuat = part.body.GetRotation()
-
-      // Convert torqueVec3 (local) to world
-      const qx = partQuat.GetX(),
-        qy = partQuat.GetY(),
-        qz = partQuat.GetZ(),
-        qw = partQuat.GetW()
-
-      // Quaternion-vector multiplication (q * v * q^-1)
-      const x = torqueVec3[0],
-        y = torqueVec3[1],
-        z = torqueVec3[2]
-
-      // Calculate q * v
-      const ix = qw * x + qy * z - qz * y
-      const iy = qw * y + qz * x - qx * z
-      const iz = qw * z + qx * y - qy * x
-      const iw = -qx * x - qy * y - qz * z
-
-      // Calculate result = (q * v) * q^-1
-      const wx = ix * qw + iw * -qx + iy * -qz - iz * -qy
-      const wy = iy * qw + iw * -qy + iz * -qx - ix * -qz
-      const wz = iz * qw + iw * -qz + ix * -qy - iy * -qx
-      const worldTorque: [number, number, number] = [
-        wx,
-        wy,
-        wz,
-      ]
-
-      // Assign to both part and parent torque accumulators, keyed by child part name
-      part.torques[name] = worldTorque
-      parent.torques[name] = [-wx, -wy, -wz]
-    }
-
-    axisConfigs.forEach(({ axis, a }) => {
+    axisConfigs.forEach(({ label, axis }) => {
       const axisDiv = jointDiv.appendChild(
         document.createElement('div')
       )
@@ -119,25 +69,21 @@ export function createJointControls(
       )
       leftButton.textContent = '<'
       leftButton.style.flex = '0 0 auto'
-      leftButton.style.marginRight = '0'
-      leftButton.onmousedown = () => {
-        torqueVec3[a] = -torqueAmount
-        update()
-      }
-      leftButton.onmouseup = leftButton.onmouseleave =
-        () => {
-          torqueVec3[a] = 0
-          update()
-        }
+      // leftButton.style.marginRight = '0'
+
+      leftButton.onmousedown = () =>
+        (part.torque[axis] = -1)
+      leftButton.onmouseup = leftButton.onmouseleave = () =>
+        (part.torque[axis] = 0)
 
       // Axis label (centered)
-      const label = axisDiv.appendChild(
+      const labelDiv = axisDiv.appendChild(
         document.createElement('span')
       )
-      label.textContent = axis
-      label.style.flex = '1 1 auto'
-      label.style.textAlign = 'center'
-      label.style.fontWeight = 'bold'
+      labelDiv.textContent = label
+      labelDiv.style.flex = '1 1 auto'
+      labelDiv.style.textAlign = 'center'
+      labelDiv.style.fontWeight = 'bold'
 
       // Right button
       const rightButton = axisDiv.appendChild(
@@ -145,43 +91,118 @@ export function createJointControls(
       )
       rightButton.textContent = '>'
       rightButton.style.flex = '0 0 auto'
-      rightButton.onmousedown = () => {
-        torqueVec3[a] = torqueAmount
-        update()
-      }
+
+      rightButton.onmousedown = () =>
+        (part.torque[axis] = 1)
       rightButton.onmouseup = rightButton.onmouseleave =
-        () => {
-          torqueVec3[a] = 0
-          update()
-        }
+        () => (part.torque[axis] = 0)
     })
   }
 }
 
-// Call this before physics update each frame
-type Vec3Arr = [number, number, number]
 export function updateJointTorques(
   parts: Record<string, Part>
 ) {
   for (const name in parts) {
-    const part = parts[name]
-    if (!part.torques) continue
-    // Sum all torques assigned to this part
-    let sum: Vec3Arr = [0, 0, 0]
+    const { joint, torque, bp, body, parent } = parts[name]
+    if (!joint) continue
 
-    for (const key in part.torques) {
-      const t = part.torques[key]
-      sum[0] += t[0]
-      sum[1] += t[1]
-      sum[2] += t[2]
-    }
-    // Apply the summed torque
-    if (sum[0] !== 0 || sum[1] !== 0 || sum[2] !== 0) {
-      part.body.AddTorque(
-        new Jolt.Vec3(sum[0], sum[1], sum[2])
+    const jointBP = bp.joint!
+    const maxTorque =
+      jointBP.maxTorque ?? defaultJointBp.maxTorque
+    const minTorque = jointBP.minTorque ?? maxTorque
+    const targetVelocity =
+      jointBP.targetVelocity ??
+      defaultJointBp.targetVelocity
+
+    const parentBody = parent!.body
+
+    // --- Relative rotation scaled to constraint frame ---
+    // Get world quaternions
+    const qChild = toThreeQuat(body.GetRotation())
+    const qParent = toThreeQuat(parentBody.GetRotation())
+
+    // Convert joint reference rotation (THREE.Quaternion)
+    const jointRefLocal =
+      bp.joint?.rotation?.clone() ?? new THREE.Quaternion()
+
+    // The joint's reference orientation in world space is jointRefLocal * qParent
+    const jointRefQuat = jointRefLocal.multiply(qParent)
+
+    // Relative rotation: q_rel = q_jointRef^-1 * q_child
+    const qRel = jointRefQuat
+      .clone()
+      .invert()
+      .multiply(qChild)
+
+    // Convert to Euler angles (in radians)
+    const euler = new THREE.Euler().setFromQuaternion(
+      qRel,
+      'YXZ'
+    )
+
+    // Get joint limits (in degrees)
+    const yprLimits = jointBP.yprLimits
+
+    // Scale each axis to [-1, 1] based on limits, do not clamp
+    const rel = [
+      yprLimits[0]
+        ? euler.y / THREE.MathUtils.degToRad(yprLimits[0])
+        : 0,
+      yprLimits[1]
+        ? euler.x / THREE.MathUtils.degToRad(yprLimits[1])
+        : 0,
+      yprLimits[2]
+        ? euler.z / THREE.MathUtils.degToRad(yprLimits[2])
+        : 0,
+    ]
+
+    // rel[0]: yaw, rel[1]: pitch, rel[2]: roll, un-clamped
+    // You can use rel[] for feedback or visualization
+
+    const swingSettings = joint.GetSwingMotorSettings()
+    const twistSettings = joint.GetTwistMotorSettings()
+
+    let swingVelocity = 0
+
+    const swingTorque = torque[0]
+    swingSettings.set_mMaxTorqueLimit(0)
+    swingSettings.set_mMinTorqueLimit(0)
+
+    joint.SetSwingMotorState(Jolt.EMotorState_Velocity)
+    joint.SetTwistMotorState(Jolt.EMotorState_Velocity)
+
+    const centerringSwingTorque = weakenBy(
+      exponentiate(rel[1], 5),
+      0.6
+    )
+
+    // const sumTorque = swingTorque
+    const sumTorque = swingTorque - centerringSwingTorque
+
+    if (sumTorque > 0) {
+      swingSettings.set_mMaxTorqueLimit(
+        sumTorque * maxTorque
       )
+      swingVelocity = targetVelocity
+    } else if (sumTorque < 0) {
+      swingSettings.set_mMinTorqueLimit(
+        sumTorque * minTorque
+      )
+      swingVelocity = -targetVelocity
+    } else {
+      joint.SetSwingMotorState(Jolt.EMotorState_Off)
+      joint.SetTwistMotorState(Jolt.EMotorState_Off)
     }
-    // Clear for next frame
-    // part.torques = {}
+
+    // Apply the torque to the joint
+    joint.SetTargetAngularVelocityCS(
+      // new Jolt.Vec3(0, 0, 1)
+      new Jolt.Vec3(0, 0, swingVelocity)
+    )
+
+    // console.log(
+    //   toThreeVec3(joint.GetTotalLambdaMotor()).toArray()
+    // )
   }
 }

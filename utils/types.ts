@@ -2,7 +2,7 @@ import type JoltType from 'jolt-physics'
 import * as THREE from 'three'
 
 // Blueprint
-export interface PartBlueprint {
+export type PartBlueprint = {
   name: string
   shape: JoltType.Shape
   children?: PartBlueprint[]
@@ -11,13 +11,26 @@ export interface PartBlueprint {
   yprRotation?: [number, number, number]
   // Only for non-root parts
   joint?: JointBlueprint
+} & Partial<PartBlueprintDefaults>
+
+export interface PartBlueprintDefaults {
+  mass: number
+  friction: number
+  restitution: number
 }
 
-export interface JointBlueprint {
+export type JointBlueprint = {
   parentOffset: [number, number, number] // Anchor in parent local space
   childOffset: [number, number, number] // Anchor in child local space
   yprAxes: [number, number, number] // Yaw, pitch, roll axes in parent local space
   yprLimits: [number, number, number] // Yaw, pitch, roll angles in degrees
+} & Partial<JointBlueprintDefaults>
+
+export interface JointBlueprintDefaults {
+  friction: number
+  maxTorque: number // max force for motors
+  minTorque?: number // min force for motors, if not set, will be maxForce
+  targetVelocity: number
 }
 
 // Prepped blueprint, pre conversion to creature
@@ -48,7 +61,7 @@ export interface Part {
   // Only for non-root parts
   parent?: Part
   joint?: JoltType.SwingTwistConstraint
-  torques: Record<string, [number, number, number]>
+  torque: [number, number, number]
 }
 
 export type RootPart = Omit<Part, 'parent' | 'joint'>

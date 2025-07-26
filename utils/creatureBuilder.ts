@@ -9,7 +9,22 @@ import {
   BuildResult,
   Part,
   RootPart,
+  JointBlueprintDefaults,
+  PartBlueprintDefaults,
 } from './types'
+
+export const defaultPartBp: PartBlueprintDefaults = {
+  mass: 1,
+  friction: 0.5,
+  restitution: 0.1,
+}
+
+export const defaultJointBp: JointBlueprintDefaults = {
+  friction: 0.2,
+  // maxTorque: 0.5,
+  maxTorque: 5,
+  targetVelocity: 10,
+}
 
 export function buildRagdollFromBlueprint(
   blueprint: PartBlueprint,
@@ -121,6 +136,7 @@ export function buildRagdollFromBlueprint(
   for (let i = 0; i < processedPartBlueprints.length; ++i) {
     const part = processedPartBlueprints[i]
     const settingsPart = settings.mParts.at(i)
+
     settingsPart.SetShape(part.shape)
     settingsPart.mRotation = new Jolt.Quat(
       ...part.worldRotation.toArray()
@@ -157,43 +173,48 @@ export function buildRagdollFromBlueprint(
         ...part.worldPosition.toArray()
       )
 
-      const constraint = (settingsPart.mToParent =
+      const jointSettings = (settingsPart.mToParent =
         new Jolt.SwingTwistConstraintSettings())
       // set space to local
-      constraint.mSpace =
+      jointSettings.mSpace =
         Jolt.EConstraintSpace_LocalToBodyCOM
 
       // Assign all properties, converting arrays to Jolt vectors as needed
       const joint = part.joint!
-      constraint.mPosition1 = new Jolt.RVec3(
+      jointSettings.mPosition1 = new Jolt.RVec3(
         ...joint.parentOffset
       )
-      constraint.mPosition2 = new Jolt.RVec3(
+      jointSettings.mPosition2 = new Jolt.RVec3(
         ...joint.childOffset
       )
 
-      constraint.mTwistAxis1 = new Jolt.Vec3(
+      jointSettings.mTwistAxis1 = new Jolt.Vec3(
         ...joint.twistAxis.toArray()
       )
-      constraint.mTwistAxis2 = mTwistAxis2
+      jointSettings.mTwistAxis2 = mTwistAxis2
 
-      constraint.mPlaneAxis1 = new Jolt.Vec3(
+      jointSettings.mPlaneAxis1 = new Jolt.Vec3(
         ...joint.planeAxis.toArray()
       )
-      constraint.mPlaneAxis2 = mPlaneAxis2
+      jointSettings.mPlaneAxis2 = mPlaneAxis2
 
       const rollAngle = joint.yprLimits[2]
-      constraint.mTwistMinAngle = degToRad(-rollAngle - 90)
-      constraint.mTwistMaxAngle = degToRad(rollAngle - 90)
+      jointSettings.mTwistMinAngle = degToRad(
+        -rollAngle - 90
+      )
+      jointSettings.mTwistMaxAngle = degToRad(
+        rollAngle - 90
+      )
 
-      constraint.mNormalHalfConeAngle = degToRad(
+      jointSettings.mNormalHalfConeAngle = degToRad(
         joint.yprLimits[0]
       )
-      constraint.mPlaneHalfConeAngle = degToRad(
+      jointSettings.mPlaneHalfConeAngle = degToRad(
         joint.yprLimits[1]
       )
 
-      constraint.mMaxFrictionTorque = 0.01
+      jointSettings.mMaxFrictionTorque =
+        joint.friction ?? defaultJointBp.friction
     }
 
     settingsPart.mMotionType = Jolt.EMotionType_Dynamic
@@ -239,11 +260,14 @@ export function buildRagdollFromBlueprint(
       .TryGetBody(ragdoll.GetBodyID(idx))
     bodies[name] = body
 
+    body.GetMotionProperties().SetAngularDamping(0.2)
+    body.GetMotionProperties().GetAccumulatedForce
+
     const part: Part = {
       bp: partBp,
       body,
       parent,
-      torques: {},
+      torque: [0, 0, 0],
     }
 
     parts[name] = part
@@ -255,10 +279,9 @@ export function buildRagdollFromBlueprint(
       )
       joints[name] = joint
       joint.SetMaxFrictionTorque
-      joint.SetSwingMotorState(Jolt.EMotorState_Off)
-      joint.SetTwistMotorState(Jolt.EMotorState_Off)
-      // joint.SetSwingMotorState(Jolt.EMotorState_Velocity)
-      // joint.SetTwistMotorState(Jolt.EMotorState_Velocity)
+
+      joint.SetSwingMotorState(Jolt.EMotorState_Velocity)
+      joint.SetTwistMotorState(Jolt.EMotorState_Velocity)
 
       part.joint = joint
     }

@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/examples/jsm/Addons.js'
 import type JoltType from 'jolt-physics'
 import { Jolt } from './world'
 import { BakedJointBlueprint, Part } from './types'
+import { degToRad, toThreeQuat, toThreeVec3 } from './math'
 
 export let container: HTMLElement
 export let scene: THREE.Scene
@@ -128,7 +129,7 @@ export function render(deltaTime: number) {
       continue
     const body = objThree.userData.body as JoltType.Body
     objThree.position.copy(
-      wrapVec3(
+      toThreeVec3(
         new Jolt.Vec3(
           body.GetPosition().GetX(),
           body.GetPosition().GetY(),
@@ -136,7 +137,9 @@ export function render(deltaTime: number) {
         )
       )
     )
-    objThree.quaternion.copy(wrapQuat(body.GetRotation()))
+    objThree.quaternion.copy(
+      toThreeQuat(body.GetRotation())
+    )
     if (
       body.GetBodyType &&
       body.GetBodyType() == Jolt.EBodyType_SoftBody
@@ -198,32 +201,6 @@ export function addToThreeScene(
   dynamicObjects.push(mesh)
 
   return mesh
-}
-
-export const wrapVec3 = (v: JoltType.Vec3): THREE.Vector3 =>
-  new THREE.Vector3(v.GetX(), v.GetY(), v.GetZ())
-export const unwrapVec3 = (
-  v: THREE.Vector3
-): JoltType.Vec3 => new Jolt.Vec3(v.x, v.y, v.z)
-export const wrapRVec3 = wrapVec3
-export const unwrapRVec3 = (
-  v: THREE.Vector3
-): JoltType.RVec3 => new Jolt.RVec3(v.x, v.y, v.z)
-export const wrapQuat = (
-  q: JoltType.Quat
-): THREE.Quaternion =>
-  new THREE.Quaternion(
-    q.GetX(),
-    q.GetY(),
-    q.GetZ(),
-    q.GetW()
-  )
-export const unwrapQuat = (
-  q: THREE.Quaternion
-): JoltType.Quat => new Jolt.Quat(q.x, q.y, q.z, q.w)
-
-function degToRad(deg: number): number {
-  return (deg * Math.PI) / 180
 }
 
 export function visualizeJointLimits(
@@ -340,4 +317,10 @@ export function visualizeJointLimits(
   //   axes.quaternion.copy(jointBp.rotation)
   //
   //   parentObj.add(axes)
+}
+
+export function updateJointTorquesViz(
+  parts: Record<string, Part>
+) {
+  //
 }

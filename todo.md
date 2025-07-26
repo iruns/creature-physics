@@ -20,12 +20,18 @@
   - [v] use yaw, pitch, and roll
   - [v] get local positions of joint, then offset so they're at the same world position
 
-- [_] change from motor to direct application of force
+- use motor, and 1 swing axis + twist
+
+  - apply motor torque
+  - always apply motor torque towards relaxed position, much stronger nearer limit
+  - determine target velocity by prevailing torque direction
 
   - [_] turn off the motor
 
 - [_] visualize motor force
 - [_] visualize other forces
+
+  - HingeConstraint::GetTotalLambdaRotation.
 
 - [_] split part bp size and shape variables
 - [_] use bp size to set the viz size
