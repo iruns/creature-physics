@@ -18,6 +18,8 @@ export function initWorld(JoltArg: typeof JoltType) {
   Jolt.destroy(settings)
   physicsSystem = jolt.GetPhysicsSystem()
   bodyInterface = physicsSystem.GetBodyInterface()
+
+  physicsSystem.SetGravity(new Jolt.Vec3(0, 0, 0))
 }
 
 export const LAYER_NON_MOVING = 0

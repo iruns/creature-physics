@@ -48,6 +48,7 @@ export interface Part {
   // Only for non-root parts
   parent?: Part
   joint?: JoltType.SwingTwistConstraint
+  torques: Record<string, [number, number, number]>
 }
 
 export type RootPart = Omit<Part, 'parent' | 'joint'>

@@ -15,7 +15,10 @@ import {
   updatePhysics,
   createFloor,
 } from './utils/world'
-import { createJointControls } from './utils/jointControl'
+import {
+  createJointControls,
+  updateJointTorques,
+} from './utils/jointControl'
 
 window.addEventListener('DOMContentLoaded', () => {
   initJolt().then(function (Jolt) {
@@ -31,7 +34,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Blueprint for minimal skeleton: upper arm and lower arm
     const blueprint: PartBlueprint = {
-      name: 'Upper-Arm',
+      name: 'upper-arm',
       shape: new Jolt.BoxShape(
         new Jolt.Vec3(0.1, 0.05, 0.2)
       ),
@@ -40,7 +43,7 @@ window.addEventListener('DOMContentLoaded', () => {
       yprRotation: [0, -20, 0],
       children: [
         {
-          name: 'Lower-Arm',
+          name: 'lower-arm',
           // shape: new Jolt.CapsuleShape(0.15, 0.05),
           shape: new Jolt.BoxShape(
             new Jolt.Vec3(0.02, 0.05, 0.2)
@@ -49,12 +52,12 @@ window.addEventListener('DOMContentLoaded', () => {
             // 1
             parentOffset: [0, 0, 0.2],
             childOffset: [0, 0, -0.2],
-            yprAxes: [10, 40, 20],
-            yprLimits: [40, 20, 20],
+            yprAxes: [0, 40, 0],
+            yprLimits: [40, 20, 0],
           },
           children: [
             {
-              name: 'Hand',
+              name: 'hand',
               // shape: new Jolt.CapsuleShape(0.15, 0.05),
               shape: new Jolt.BoxShape(
                 new Jolt.Vec3(0.01, 0.02, 0.1)
@@ -63,8 +66,8 @@ window.addEventListener('DOMContentLoaded', () => {
                 // 1
                 parentOffset: [0, 0, 0.2],
                 childOffset: [0, 0, -0.1],
-                yprAxes: [10, 40, 0],
-                yprLimits: [40, 20, 20],
+                yprAxes: [0, 40, 0],
+                yprLimits: [40, 0, 0],
               },
             },
           ],
@@ -121,6 +124,7 @@ window.addEventListener('DOMContentLoaded', () => {
       let deltaTime = clock.getDelta()
       deltaTime = Math.min(deltaTime, 1.0 / 30.0)
 
+      updateJointTorques(parts)
       updatePhysics(deltaTime)
       render(deltaTime)
     }

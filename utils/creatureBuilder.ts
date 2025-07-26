@@ -193,7 +193,7 @@ export function buildRagdollFromBlueprint(
         joint.yprLimits[1]
       )
 
-      constraint.mMaxFrictionTorque = 0.2
+      constraint.mMaxFrictionTorque = 0.01
     }
 
     settingsPart.mMotionType = Jolt.EMotionType_Dynamic
@@ -243,6 +243,7 @@ export function buildRagdollFromBlueprint(
       bp: partBp,
       body,
       parent,
+      torques: {},
     }
 
     parts[name] = part
