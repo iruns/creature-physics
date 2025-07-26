@@ -1,9 +1,7 @@
 import * as THREE from 'three'
 import initJolt from 'jolt-physics'
-import {
-  buildRagdollFromBlueprint,
-  PartBlueprint,
-} from './utils/rig_blueprint'
+import { Part, PartBlueprint } from './utils/types'
+import { buildRagdollFromBlueprint } from './utils/creatureBuilder'
 import {
   addToThreeScene,
   camera,
@@ -17,7 +15,7 @@ import {
   updatePhysics,
   createFloor,
 } from './utils/world'
-import { createJointControls } from './utils/joint_control'
+import { createJointControls } from './utils/jointControl'
 
 window.addEventListener('DOMContentLoaded', () => {
   initJolt().then(function (Jolt) {
@@ -49,8 +47,8 @@ window.addEventListener('DOMContentLoaded', () => {
           ),
           joint: {
             // 1
-            positionA: [0, 0, 0.2],
-            positionB: [0, 0, -0.2],
+            parentOffset: [0, 0, 0.2],
+            childOffset: [0, 0, -0.2],
             yprAxes: [10, 40, 20],
             yprLimits: [40, 90, 20],
           },
@@ -63,8 +61,8 @@ window.addEventListener('DOMContentLoaded', () => {
               ),
               joint: {
                 // 1
-                positionA: [0, 0, 0.2],
-                positionB: [0, 0, -0.1],
+                parentOffset: [0, 0, 0.2],
+                childOffset: [0, 0, -0.1],
                 yprAxes: [10, 40, 0],
                 yprLimits: [40, 90, 20],
               },
@@ -75,13 +73,8 @@ window.addEventListener('DOMContentLoaded', () => {
     }
 
     // Use the blueprint utility
-    const { processedBlueprint, ragdoll, bodies, joints } =
-      buildRagdollFromBlueprint(
-        Jolt,
-        blueprint,
-        physicsSystem,
-        1
-      )
+    const { creature, ragdoll, bodies, joints } =
+      buildRagdollFromBlueprint(blueprint, physicsSystem, 1)
 
     if (!ragdoll) return
 
@@ -94,35 +87,34 @@ window.addEventListener('DOMContentLoaded', () => {
     )
 
     // Recursively add bodies to Three.js scene using blueprint and bodies map
-    const meshes: Record<string, THREE.Mesh> = {}
-    processedBlueprint.forEach((part) => {
-      const body = bodies[part.name]
-      if (body) {
-        const mesh = addToThreeScene(body, 0xff00ff)
-        mesh.traverse((obj: any) => {
-          if (obj.material) {
-            obj.material.transparent = true
-            obj.material.opacity = 0.3
-            obj.material.depthWrite = false
-          }
-        })
-        meshes[part.name] = mesh
+    const threeObjs: Record<string, THREE.Mesh> = {}
+    function toInterface(part: Part) {
+      const { bp, parent, children, body } = part
 
-        // If this part has a joint, visualize its limits at the joint anchor
-        if (part.joint) {
-          visualizeJointLimits(
-            meshes[part.parent!.name],
-            part.joint
-          )
+      const threeObj = addToThreeScene(body, 0xff00ff)
+      threeObj.traverse((obj: any) => {
+        if (obj.material) {
+          obj.material.transparent = true
+          obj.material.opacity = 0.3
+          obj.material.depthWrite = false
         }
-      }
-    })
+      })
+      threeObjs[bp.name] = threeObj
 
-    // ragdoll.SetLinearAndAngularVelocity(
-    //   new Jolt.Vec3(),
-    //   new Jolt.Vec3(0, 90, 0),
-    //   false
-    // )
+      // If this part has a joint, visualize its limits at the joint anchor
+      if (parent && bp.joint) {
+        visualizeJointLimits(
+          threeObjs[parent.bp.name],
+          bp.joint
+        )
+      }
+
+      if (children) {
+        for (const name in children)
+          toInterface(children[name])
+      }
+    }
+    toInterface(creature)
 
     camera.position.z = 4
     camera.position.y = 1.5

@@ -3,10 +3,7 @@ import WebGL from 'three/examples/jsm/capabilities/WebGL.js'
 import { OrbitControls } from 'three/examples/jsm/Addons.js'
 import type JoltType from 'jolt-physics'
 import { Jolt } from './world'
-import {
-  JointBlueprint,
-  ProcessedJointBlueprint,
-} from './rig_blueprint'
+import { BakedJointBlueprint, Part } from './types'
 
 export let container: HTMLElement
 export let scene: THREE.Scene
@@ -231,7 +228,7 @@ function degToRad(deg: number): number {
 
 export function visualizeJointLimits(
   parentObj: THREE.Object3D,
-  jointBp: ProcessedJointBlueprint
+  jointBp: BakedJointBlueprint
 ) {
   // Convert all angles from degrees to radians for geometry
   const normalHalfConeRad = degToRad(jointBp.yprLimits[1])
@@ -297,7 +294,7 @@ export function visualizeJointLimits(
     swingMaterial
   )
 
-  swingMesh.position.fromArray(jointBp.positionA)
+  swingMesh.position.fromArray(jointBp.parentOffset)
   swingMesh.quaternion.copy(jointBp.rotation)
 
   parentObj.add(swingMesh)
@@ -332,7 +329,7 @@ export function visualizeJointLimits(
     twistGeometry,
     twistMaterial
   )
-  twistArc.position.fromArray(jointBp.positionA)
+  twistArc.position.fromArray(jointBp.parentOffset)
   twistArc.quaternion.copy(jointBp.rotation)
 
   parentObj.add(twistArc)

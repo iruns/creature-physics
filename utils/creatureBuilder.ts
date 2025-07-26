@@ -1,57 +1,17 @@
-// Intuitive blueprint-based ragdoll/body builder for JoltPhysics
-import type JoltType from 'jolt-physics'
 import { Jolt } from './world'
-import {
-  degToRad,
-  quaternionFromYPR,
-  rotateByAxis,
-} from './math'
+import type JoltType from 'jolt-physics'
 import * as THREE from 'three'
-
-export interface PartBlueprint {
-  name: string
-  shape: JoltType.Shape
-  children?: PartBlueprint[]
-  // Only root part has position/rotation
-  position?: [number, number, number]
-  yprRotation?: [number, number, number]
-  // Only for non-root parts
-  joint?: JointBlueprint
-}
-
-export interface ProcessedPartBlueprint
-  extends PartBlueprint {
-  parent?: ProcessedPartBlueprint
-
-  worldPosition: THREE.Vector3
-  worldRotation: THREE.Quaternion
-
-  joint?: ProcessedJointBlueprint
-}
-
-export interface JointBlueprint {
-  positionA: [number, number, number] // Anchor in parent local space
-  positionB: [number, number, number] // Anchor in child local space
-  yprAxes: [number, number, number] // Yaw, pitch, roll axes in parent local space
-  yprLimits: [number, number, number] // Yaw, pitch, roll angles in degrees
-}
-
-export interface ProcessedJointBlueprint
-  extends JointBlueprint {
-  rotation: THREE.Quaternion
-  twistAxis: THREE.Vector3
-  planeAxis: THREE.Vector3
-}
-
-export interface BuildResult {
-  processedBlueprint: ProcessedPartBlueprint[]
-  ragdoll: JoltType.Ragdoll | null
-  bodies: Record<string, JoltType.Body>
-  joints: Record<string, JoltType.SwingTwistConstraint>
-}
+import { degToRad, quaternionFromYPR } from './math'
+import {
+  BakedPartBlueprint,
+  PartBlueprint,
+  BakedJointBlueprint,
+  BuildResult,
+  Part,
+  RootPart,
+} from './types'
 
 export function buildRagdollFromBlueprint(
-  Jolt: typeof JoltType,
   blueprint: PartBlueprint,
   physicsSystem: JoltType.PhysicsSystem,
   layer: number = 1
@@ -61,50 +21,53 @@ export function buildRagdollFromBlueprint(
   const mPlaneAxis2 = new Jolt.Vec3(1, 0, 0)
 
   // Deeply clone the blueprint and process, applying world transforms
-  const processedBlueprint: ProcessedPartBlueprint[] = []
+  const processedPartBlueprints: BakedPartBlueprint[] = []
   const nameToIndex: Record<string, number> = {}
 
-  function process(
-    part: PartBlueprint,
-    parent?: ProcessedPartBlueprint
+  function bakePartBp(
+    partBp: PartBlueprint,
+    parentPartBp?: BakedPartBlueprint
   ) {
-    const processedJoint:
-      | ProcessedJointBlueprint
-      | undefined = part.joint
-      ? {
-          ...part.joint,
-          rotation: new THREE.Quaternion(),
-          twistAxis: new THREE.Vector3(),
-          planeAxis: new THREE.Vector3(),
-        }
-      : undefined
+    const { children } = partBp
 
-    const processedPart: ProcessedPartBlueprint = {
-      ...part,
-      parent,
-      joint: processedJoint,
+    const bakedPartBp: BakedPartBlueprint = {
+      ...partBp,
+      idx: processedPartBlueprints.length,
+      parent: parentPartBp,
+      children: partBp.children as BakedPartBlueprint[],
       worldPosition: new THREE.Vector3(),
       worldRotation: new THREE.Quaternion(),
+      joint: undefined,
     }
 
-    const { joint, worldPosition, worldRotation } =
-      processedPart
+    const { idx, worldPosition, worldRotation } =
+      bakedPartBp
 
-    if (!parent) {
-      if (!part.position || !part.yprRotation)
+    if (!parentPartBp) {
+      if (!partBp.position || !partBp.yprRotation)
         throw new Error(
           'Root part must have position and rotation'
         )
-      worldPosition.fromArray(part.position)
+      worldPosition.fromArray(partBp.position)
       worldRotation.copy(
-        quaternionFromYPR(...part.yprRotation)
+        quaternionFromYPR(...partBp.yprRotation)
       )
     } else {
+      const { joint } = partBp
       if (!joint)
         throw new Error('Non-root part must have a joint')
 
+      const bakedJoint: BakedJointBlueprint = {
+        ...joint,
+        rotation: new THREE.Quaternion(),
+        twistAxis: new THREE.Vector3(),
+        planeAxis: new THREE.Vector3(),
+      }
+
+      bakedPartBp.joint = bakedJoint
+
       const { yprAxes, rotation, twistAxis, planeAxis } =
-        joint
+        bakedJoint
 
       // Calculate joint rotation from the unprocessed axes
       rotation.copy(quaternionFromYPR(...yprAxes))
@@ -116,35 +79,37 @@ export function buildRagdollFromBlueprint(
       twistAxis.setFromMatrixColumn(matrix, 2).normalize()
       planeAxis.setFromMatrixColumn(matrix, 1).normalize()
 
-      // use joit and parent to calculate the world rotation
+      // use joint and parentPart to calculate the world rotation
       worldRotation.copy(rotation)
-      worldRotation.multiply(parent.worldRotation)
+      worldRotation.multiply(parentPartBp.worldRotation)
     }
-    // console.log(part.name, worldRotation)
 
-    const idx = processedBlueprint.length
-    processedBlueprint.push(processedPart)
-    nameToIndex[processedPart.name] = idx
+    processedPartBlueprints.push(bakedPartBp)
+    nameToIndex[bakedPartBp.name] = idx
 
-    if (part.children) {
-      for (const child of part.children)
-        process(child, processedPart)
+    if (children) {
+      children.forEach((child, i) => {
+        children[i] = bakePartBp(child, bakedPartBp)
+      })
     }
+
+    return bakedPartBp
   }
-  process(blueprint)
+  // TODO clone deep the blueprint
+  bakePartBp(blueprint)
 
   // Build skeleton
   const skeleton = new Jolt.Skeleton()
-  for (let i = 0; i < processedBlueprint.length; ++i) {
-    const part = processedBlueprint[i]
+  for (let i = 0; i < processedPartBlueprints.length; ++i) {
+    const part = processedPartBlueprints[i]
     const jName = new Jolt.JPHString(
       part.name,
       part.name.length
     )
-    const parentIdx = part.parent
+    const parentPartIdx = part.parent
       ? nameToIndex[part.parent.name]
       : 0
-    skeleton.AddJoint(jName, parentIdx)
+    skeleton.AddJoint(jName, parentPartIdx)
     Jolt.destroy(jName)
   }
 
@@ -152,9 +117,9 @@ export function buildRagdollFromBlueprint(
   const refObject = new THREE.Object3D()
   const settings = new Jolt.RagdollSettings()
   settings.mSkeleton = skeleton
-  settings.mParts.resize(processedBlueprint.length)
-  for (let i = 0; i < processedBlueprint.length; ++i) {
-    const part = processedBlueprint[i]
+  settings.mParts.resize(processedPartBlueprints.length)
+  for (let i = 0; i < processedPartBlueprints.length; ++i) {
+    const part = processedPartBlueprints[i]
     const settingsPart = settings.mParts.at(i)
     settingsPart.SetShape(part.shape)
     settingsPart.mRotation = new Jolt.Quat(
@@ -173,19 +138,20 @@ export function buildRagdollFromBlueprint(
       refObject.quaternion.copy(part.worldRotation)
       refObject.position.set(0, 0, 0)
       const jointPositionToPart = refObject.localToWorld(
-        new THREE.Vector3(...part.joint!.positionB)
+        new THREE.Vector3(...part.joint!.childOffset)
       )
 
-      // calculate world position of joint to parent
+      // calculate world position of joint to parentPart
       refObject.quaternion.copy(parent.worldRotation)
       refObject.position.copy(parent.worldPosition)
-      const jointPositionToParent = refObject.localToWorld(
-        new THREE.Vector3(...part.joint!.positionA)
-      )
+      const jointPositionToparentPart =
+        refObject.localToWorld(
+          new THREE.Vector3(...part.joint!.parentOffset)
+        )
 
       // set position to the difference
       part.worldPosition.copy(
-        jointPositionToParent.sub(jointPositionToPart)
+        jointPositionToparentPart.sub(jointPositionToPart)
       )
       settingsPart.mPosition = new Jolt.RVec3(
         ...part.worldPosition.toArray()
@@ -200,10 +166,10 @@ export function buildRagdollFromBlueprint(
       // Assign all properties, converting arrays to Jolt vectors as needed
       const joint = part.joint!
       constraint.mPosition1 = new Jolt.RVec3(
-        ...joint.positionA
+        ...joint.parentOffset
       )
       constraint.mPosition2 = new Jolt.RVec3(
-        ...joint.positionB
+        ...joint.childOffset
       )
 
       constraint.mTwistAxis1 = new Jolt.Vec3(
@@ -252,32 +218,58 @@ export function buildRagdollFromBlueprint(
     string,
     JoltType.SwingTwistConstraint
   > = {}
-  for (let i = 0; i < processedBlueprint.length; ++i) {
-    const part = processedBlueprint[i]
-    const partName = part.name
-    const bodyID = ragdoll.GetBodyID(i)
+
+  // Create creature object
+  function fillPart(
+    partBp: BakedPartBlueprint,
+    parent?: Part
+  ) {
+    const {
+      idx,
+      name,
+      joint: jointBP,
+      children: childrenBps,
+    } = partBp
     const body = physicsSystem
       .GetBodyLockInterfaceNoLock()
-      .TryGetBody(bodyID)
-    bodies[partName] = body
-    if (i > 0 && part.joint) {
-      const constraint = Jolt.castObject(
-        ragdoll.GetConstraint(i - 1),
+      .TryGetBody(ragdoll.GetBodyID(idx))
+    bodies[name] = body
+
+    const part: Part = {
+      bp: partBp,
+      body,
+      parent,
+    }
+
+    if (jointBP) {
+      const joint = Jolt.castObject(
+        ragdoll.GetConstraint(idx - 1),
         Jolt.SwingTwistConstraint
       )
-      joints[partName] = constraint
-      constraint.SetSwingMotorState(
-        Jolt.EMotorState_Velocity
-      )
-      constraint.SetTwistMotorState(
-        Jolt.EMotorState_Velocity
-      )
-      // constraint.SetTargetAngularVelocityCS(
-      //   new Jolt.Vec3(1, 0, 0)
-      //   // new Jolt.Vec3(0, -1, 0)
-      //   // new Jolt.Vec3(0, 0, 1)
-      // )
+      joints[name] = joint
+      joint.SetSwingMotorState(Jolt.EMotorState_Velocity)
+      joint.SetTwistMotorState(Jolt.EMotorState_Velocity)
+
+      part.joint = joint
     }
+
+    if (childrenBps) {
+      const children = (part.children = {})
+      childrenBps.forEach((childBp) => {
+        children[childBp.name] = fillPart(childBp, part)
+      })
+    }
+
+    return part
   }
-  return { processedBlueprint, ragdoll, bodies, joints }
+  const creature = fillPart(
+    processedPartBlueprints[0]
+  ) as RootPart
+
+  return {
+    creature,
+    ragdoll,
+    bodies,
+    joints,
+  }
 }
