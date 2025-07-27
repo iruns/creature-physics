@@ -1,50 +1,53 @@
-- [v] fix limits to be able to show large limits
-- [v] check the order of twist and swing
+- [x] fix limits to be able to show large limits
+- [x] check the order of twist and swing
 
-  - [v] limits are changed by twist
-  - [v] motor orientations are change by twist
+  - [x] limits aren't changed by twist
+  - [x] motor orientations are changed by twist
 
-- [v] fix the motor control
+- [x] fix the motor control
 
-  - [v] to 2 buttons
-  - [v] vertical layout
-  - [v] actual motor effect
+  - [x] to 2 buttons
+  - [x] vertical layout
+  - [x] actual motor effect
 
-- [v] create creature by blueprint
+- [x] create creature by blueprint
 
-- [v] correctly translate axes to limits
+- [x] correctly translate axes to limits
 
-- [v] blueprint should be relative
+- [x] blueprint should be relative
 
-  - [v] make children start at relaxed rotation (middle of limits)
-  - [v] use yaw, pitch, and roll
-  - [v] get local positions of joint, then offset so they're at the same world position
+  - [x] make children start at relaxed rotation (middle of limits)
+  - [x] use yaw, pitch, and roll
+  - [x] get local positions of joint, then offset so they're at the same world position
 
-- use motor, and 1 swing axis + twist
+- [x] use motor 6-DoF Joints
 
-  - apply motor torque
-  - always apply motor torque towards relaxed position, much stronger nearer limit
-  - determine target velocity by prevailing torque direction
+  - [x] apply motor torque
+  - [x] always apply motor torque towards relaxed position, much stronger nearer limit
+  - [x] determine target velocity by prevailing torque direction
 
-  - [_] turn off the motor
+  - [x] refactor to apply to each axis
 
-- [_] visualize motor force
-- [_] visualize other forces
+  - [ ] create 2 types of joints (from the 6-DoF): swing & roll
+  - [ ] reactivate the relaxing force
 
-  - HingeConstraint::GetTotalLambdaRotation.
+- [ ] visualize motor force
+- [ ] visualize other forces
 
-- [_] split part bp size and shape variables
-- [_] use bp size to set the viz size
+  - GetTotalLambdaRotation
 
-- [_] symmetry
+- [ ] split part bp size and shape variables
+- [ ] use bp size to set the viz size
 
-- [_] relaxing forces
-- [_] limit forces
+- [ ] symmetry
 
-- [_] customize
+- [ ] relaxing forces
+- [ ] limit forces
 
-  - [_] mass
-  - [_] material
+- [ ] customize
+
+  - [ ] mass
+  - [ ] material
 
 - check for swing and twist only joint types
 

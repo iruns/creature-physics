@@ -1,6 +1,15 @@
 import type JoltType from 'jolt-physics'
 import * as THREE from 'three'
 
+// TODO, use these
+export type YPSet = {
+  y: number
+  p: number
+}
+export type RSet = {
+  r: number
+}
+
 // Blueprint
 export type PartBlueprint = {
   name: string
@@ -23,17 +32,19 @@ export type JointBlueprint = {
   parentOffset: [number, number, number] // Anchor in parent local space
   childOffset: [number, number, number] // Anchor in child local space
   yprAxes: [number, number, number] // Yaw, pitch, roll axes in parent local space
-  yprLimits: [number, number, number] // Yaw, pitch, roll angles in degrees
+  ypLimits: [number, number] // Yaw, pitch limits in degrees
+  // rLimit: number // Roll limit in degrees
 } & Partial<JointBlueprintDefaults>
 
 export interface JointBlueprintDefaults {
   friction: number
   maxTorque: number // max force for motors
   minTorque?: number // min force for motors, if not set, will be maxForce
+  // TODO torques should be per axis
   targetVelocity: number
 }
 
-// Prepped blueprint, pre conversion to creature
+// Baked blueprint, pre conversion to creature
 export interface BakedPartBlueprint extends PartBlueprint {
   idx: number
 
@@ -49,8 +60,8 @@ export interface BakedPartBlueprint extends PartBlueprint {
 export interface BakedJointBlueprint
   extends JointBlueprint {
   rotation: THREE.Quaternion
+  yawAxis: THREE.Vector3
   twistAxis: THREE.Vector3
-  planeAxis: THREE.Vector3
 }
 
 // Resulting creature
@@ -60,7 +71,7 @@ export interface Part {
   children?: Record<string, Part>
   // Only for non-root parts
   parent?: Part
-  joint?: JoltType.SwingTwistConstraint
+  joint?: JoltType.SixDOFConstraint
   torque: [number, number, number]
 }
 
@@ -71,5 +82,5 @@ export interface BuildResult {
   ragdoll: JoltType.Ragdoll | null
   parts: Record<string, Part>
   bodies: Record<string, JoltType.Body>
-  joints: Record<string, JoltType.SwingTwistConstraint>
+  joints: Record<string, JoltType.SixDOFConstraint>
 }

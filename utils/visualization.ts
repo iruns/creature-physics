@@ -208,9 +208,8 @@ export function visualizeJointLimits(
   jointBp: BakedJointBlueprint
 ) {
   // Convert all angles from degrees to radians for geometry
-  const normalHalfConeRad = degToRad(jointBp.yprLimits[1])
-  const planeHalfConeRad = degToRad(jointBp.yprLimits[0])
-  const twistRad = degToRad(jointBp.yprLimits[2])
+  const normalHalfConeRad = degToRad(jointBp.ypLimits[1])
+  const planeHalfConeRad = degToRad(jointBp.ypLimits[0])
 
   // Swing cone (elliptical, partial)
   const swingSegments = 8
@@ -276,40 +275,41 @@ export function visualizeJointLimits(
 
   parentObj.add(swingMesh)
 
-  // Twist arc (partial ring)
-  const twistRadius = 0.22
-  const twistSegments = 8
-  const twistGeometry = new THREE.BufferGeometry()
-  const twistVertices: number[] = []
-  // Add center point
-  twistVertices.push(0, 0, 0)
-  for (let i = 0; i <= twistSegments; i++) {
-    const angle =
-      -twistRad + (i / twistSegments) * (twistRad * 2)
-    const x = Math.cos(angle) * twistRadius
-    const y = Math.sin(angle) * twistRadius
-    const z = 0
-    twistVertices.push(x, y, z)
-  }
-  twistVertices.push(0, 0, 0)
-  twistGeometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute(twistVertices, 3)
-  )
-  const twistMaterial = new THREE.LineBasicMaterial({
-    color: 0xff0000,
-    opacity: 0.7,
-    transparent: true,
-  })
-  // Use Line instead of LineLoop to connect center to arc
-  const twistArc = new THREE.Line(
-    twistGeometry,
-    twistMaterial
-  )
-  twistArc.position.fromArray(jointBp.parentOffset)
-  twistArc.quaternion.copy(jointBp.rotation)
-
-  parentObj.add(twistArc)
+  // TODO, reactivate for hinge joints
+  // // Twist arc (partial ring)
+  // const twistRadius = 0.22
+  // const twistSegments = 8
+  // const twistGeometry = new THREE.BufferGeometry()
+  // const twistVertices: number[] = []
+  // // Add center point
+  // twistVertices.push(0, 0, 0)
+  // for (let i = 0; i <= twistSegments; i++) {
+  //   const angle =
+  //     -twistRad + (i / twistSegments) * (twistRad * 2)
+  //   const x = Math.cos(angle) * twistRadius
+  //   const y = Math.sin(angle) * twistRadius
+  //   const z = 0
+  //   twistVertices.push(x, y, z)
+  // }
+  // twistVertices.push(0, 0, 0)
+  // twistGeometry.setAttribute(
+  //   'position',
+  //   new THREE.Float32BufferAttribute(twistVertices, 3)
+  // )
+  // const twistMaterial = new THREE.LineBasicMaterial({
+  //   color: 0xff0000,
+  //   opacity: 0.7,
+  //   transparent: true,
+  // })
+  // // Use Line instead of LineLoop to connect center to arc
+  // const twistArc = new THREE.Line(
+  //   twistGeometry,
+  //   twistMaterial
+  // )
+  //   twistArc.position.fromArray(jointBp.parentOffset)
+  //   twistArc.quaternion.copy(jointBp.rotation)
+  //
+  //   parentObj.add(twistArc)
 
   //   // Optionally: add axes helper at joint
   //   const axes = new THREE.AxesHelper(0.1)

@@ -35,7 +35,7 @@ window.addEventListener('DOMContentLoaded', () => {
         new Jolt.Vec3(0.1, 0.05, 0.2)
       ),
       // shape: new Jolt.CapsuleShape(0.15, 0.06),
-      position: [0, 0.2, 0],
+      position: [0, 0.5, 0],
       // position: [0, 0.6, 0],
       yprRotation: [0, 0, 0],
       children: [
@@ -49,8 +49,8 @@ window.addEventListener('DOMContentLoaded', () => {
             // 1
             parentOffset: [0, 0, 0.2],
             childOffset: [0, 0, -0.2],
-            yprAxes: [0, -40, 0],
-            yprLimits: [0, 80, 0],
+            yprAxes: [0, 0, 0],
+            ypLimits: [30, 60],
           },
           // children: [
           //   {
@@ -116,11 +116,19 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Animation loop
     const timeStep = 1.0 / 30.0
+    let t = 0
+    let off = false
     setInterval(() => {
       updateJointTorques(parts)
 
       updatePhysics(timeStep)
       render(timeStep)
+
+      if (!off && !bodies['lower-arm'].IsActive()) {
+        off = true
+        console.log(t)
+      }
+      t++
     }, timeStep * 1000)
   })
 })
