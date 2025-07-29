@@ -3,7 +3,12 @@ import WebGL from 'three/examples/jsm/capabilities/WebGL.js'
 import { OrbitControls } from 'three/examples/jsm/Addons.js'
 import type JoltType from 'jolt-physics'
 import { Jolt } from './world'
-import { BakedJointBlueprint, Part } from './types'
+import {
+  BakedJointBlueprint,
+  Part,
+  RSet,
+  YPSet,
+} from './types'
 import { degToRad, toThreeQuat, toThreeVec3 } from './math'
 
 export let container: HTMLElement
@@ -207,109 +212,119 @@ export function visualizeJointLimits(
   parentObj: THREE.Object3D,
   jointBp: BakedJointBlueprint
 ) {
-  // Convert all angles from degrees to radians for geometry
-  const normalHalfConeRad = degToRad(jointBp.ypLimits[1])
-  const planeHalfConeRad = degToRad(jointBp.ypLimits[0])
+  const { y, p, r } = jointBp.limits as YPSet & RSet
 
-  // Swing cone (elliptical, partial)
-  const swingSegments = 8
-  const swingHeight = 0.3
-  const swingVertices: number[] = []
-  swingVertices.push(0, 0, 0) // cone tip at origin
-  const segmentRad = (2 * Math.PI) / swingSegments
+  // if y & p
+  if (r == undefined) {
+    // Convert all angles from degrees to radians for geometry
+    const normalHalfConeRad = degToRad(p)
+    const planeHalfConeRad = degToRad(y)
 
-  const normalLimitX =
-    Math.sin(normalHalfConeRad) * swingHeight
-  const normalLimitY =
-    Math.cos(normalHalfConeRad) * swingHeight
-  const planeLimitX =
-    Math.sin(planeHalfConeRad) * swingHeight
-  const planeLimitY =
-    Math.cos(planeHalfConeRad) * swingHeight
+    // Swing cone (elliptical, partial)
+    const swingSegments = 8
+    const swingHeight = 0.3
+    const swingVertices: number[] = []
+    swingVertices.push(0, 0, 0) // cone tip at origin
+    const segmentRad = (2 * Math.PI) / swingSegments
 
-  for (let i = 0; i <= swingSegments; i++) {
-    const theta = i * segmentRad
+    const normalLimitX =
+      Math.sin(normalHalfConeRad) * swingHeight
+    const normalLimitY =
+      Math.cos(normalHalfConeRad) * swingHeight
+    const planeLimitX =
+      Math.sin(planeHalfConeRad) * swingHeight
+    const planeLimitY =
+      Math.cos(planeHalfConeRad) * swingHeight
 
-    const normalWeight = Math.cos(theta)
-    const planeWeight = Math.sin(theta)
-    const absNormalWeight = Math.abs(normalWeight)
-    const absPlaneWeight = Math.abs(planeWeight)
+    for (let i = 0; i <= swingSegments; i++) {
+      const theta = i * segmentRad
 
-    // Elliptical radii
-    const x = planeLimitX * planeWeight
-    const y = normalLimitX * normalWeight
-    const z =
-      (normalLimitY * absNormalWeight +
-        planeLimitY * absPlaneWeight) /
-      (absNormalWeight + absPlaneWeight)
-    swingVertices.push(x, y, z)
+      const normalWeight = Math.cos(theta)
+      const planeWeight = Math.sin(theta)
+      const absNormalWeight = Math.abs(normalWeight)
+      const absPlaneWeight = Math.abs(planeWeight)
+
+      // Elliptical radii
+      const x = planeLimitX * planeWeight
+      const y = normalLimitX * normalWeight
+      const z =
+        (normalLimitY * absNormalWeight +
+          planeLimitY * absPlaneWeight) /
+        (absNormalWeight + absPlaneWeight)
+      swingVertices.push(x, y, z)
+    }
+
+    // Indices for triangle fan
+    const swingIndices: number[] = []
+    for (let i = 1; i <= swingSegments; i++) {
+      swingIndices.push(0, i, i + 1)
+    }
+
+    const swingGeometry = new THREE.BufferGeometry()
+    swingGeometry.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute(swingVertices, 3)
+    )
+    swingGeometry.setIndex(swingIndices)
+    swingGeometry.computeVertexNormals()
+
+    const swingMaterial = new THREE.MeshBasicMaterial({
+      color: 0x00ff00,
+      wireframe: true,
+      opacity: 0.5,
+      transparent: true,
+    })
+    const swingMesh = new THREE.Mesh(
+      swingGeometry,
+      swingMaterial
+    )
+
+    swingMesh.position.fromArray(jointBp.parentOffset)
+    swingMesh.quaternion.copy(jointBp.rotation)
+
+    parentObj.add(swingMesh)
   }
 
-  // Indices for triangle fan
-  const swingIndices: number[] = []
-  for (let i = 1; i <= swingSegments; i++) {
-    swingIndices.push(0, i, i + 1)
+  // if r
+  else {
+    // Twist arc (partial ring)
+    const twistRadius = 0.22
+    const twistSegments = 8
+    const twistGeometry = new THREE.BufferGeometry()
+    const twistVertices: number[] = []
+
+    const twistRad = degToRad(r)
+
+    // Add center point
+    twistVertices.push(0, 0, 0)
+    for (let i = 0; i <= twistSegments; i++) {
+      const angle =
+        -twistRad + (i / twistSegments) * (twistRad * 2)
+      const x = Math.cos(angle) * twistRadius
+      const y = Math.sin(angle) * twistRadius
+      const z = 0
+      twistVertices.push(x, y, z)
+    }
+    twistVertices.push(0, 0, 0)
+    twistGeometry.setAttribute(
+      'position',
+      new THREE.Float32BufferAttribute(twistVertices, 3)
+    )
+    const twistMaterial = new THREE.LineBasicMaterial({
+      color: 0xff0000,
+      opacity: 0.7,
+      transparent: true,
+    })
+    // Use Line instead of LineLoop to connect center to arc
+    const twistArc = new THREE.Line(
+      twistGeometry,
+      twistMaterial
+    )
+    twistArc.position.fromArray(jointBp.parentOffset)
+    twistArc.quaternion.copy(jointBp.rotation)
+
+    parentObj.add(twistArc)
   }
-
-  const swingGeometry = new THREE.BufferGeometry()
-  swingGeometry.setAttribute(
-    'position',
-    new THREE.Float32BufferAttribute(swingVertices, 3)
-  )
-  swingGeometry.setIndex(swingIndices)
-  swingGeometry.computeVertexNormals()
-
-  const swingMaterial = new THREE.MeshBasicMaterial({
-    color: 0x00ff00,
-    wireframe: true,
-    opacity: 0.5,
-    transparent: true,
-  })
-  const swingMesh = new THREE.Mesh(
-    swingGeometry,
-    swingMaterial
-  )
-
-  swingMesh.position.fromArray(jointBp.parentOffset)
-  swingMesh.quaternion.copy(jointBp.rotation)
-
-  parentObj.add(swingMesh)
-
-  // TODO, reactivate for hinge joints
-  // // Twist arc (partial ring)
-  // const twistRadius = 0.22
-  // const twistSegments = 8
-  // const twistGeometry = new THREE.BufferGeometry()
-  // const twistVertices: number[] = []
-  // // Add center point
-  // twistVertices.push(0, 0, 0)
-  // for (let i = 0; i <= twistSegments; i++) {
-  //   const angle =
-  //     -twistRad + (i / twistSegments) * (twistRad * 2)
-  //   const x = Math.cos(angle) * twistRadius
-  //   const y = Math.sin(angle) * twistRadius
-  //   const z = 0
-  //   twistVertices.push(x, y, z)
-  // }
-  // twistVertices.push(0, 0, 0)
-  // twistGeometry.setAttribute(
-  //   'position',
-  //   new THREE.Float32BufferAttribute(twistVertices, 3)
-  // )
-  // const twistMaterial = new THREE.LineBasicMaterial({
-  //   color: 0xff0000,
-  //   opacity: 0.7,
-  //   transparent: true,
-  // })
-  // // Use Line instead of LineLoop to connect center to arc
-  // const twistArc = new THREE.Line(
-  //   twistGeometry,
-  //   twistMaterial
-  // )
-  //   twistArc.position.fromArray(jointBp.parentOffset)
-  //   twistArc.quaternion.copy(jointBp.rotation)
-  //
-  //   parentObj.add(twistArc)
 
   //   // Optionally: add axes helper at joint
   //   const axes = new THREE.AxesHelper(0.1)

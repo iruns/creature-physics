@@ -37,37 +37,55 @@ window.addEventListener('DOMContentLoaded', () => {
       // shape: new Jolt.CapsuleShape(0.15, 0.06),
       position: [0, 0.5, 0],
       // position: [0, 0.6, 0],
-      yprRotation: [0, 0, 0],
+      rotation: { y: 0, p: 0, r: 0 },
       children: [
         {
           name: 'lower-arm',
           // shape: new Jolt.CapsuleShape(0.15, 0.05),
           shape: new Jolt.BoxShape(
-            new Jolt.Vec3(0.02, 0.05, 0.2)
+            new Jolt.Vec3(0.02, 0.02, 0.1)
           ),
           joint: {
             // 1
             parentOffset: [0, 0, 0.2],
-            childOffset: [0, 0, -0.2],
-            yprAxes: [0, 0, 0],
-            ypLimits: [30, 60],
+            childOffset: [0, 0, -0.1],
+            axis: { y: 0, p: 0, r: 0 },
+            limits: { y: 30, p: 60 },
           },
-          // children: [
-          //   {
-          //     name: 'hand',
-          //     // shape: new Jolt.CapsuleShape(0.15, 0.05),
-          //     shape: new Jolt.BoxShape(
-          //       new Jolt.Vec3(0.01, 0.02, 0.1)
-          //     ),
-          //     joint: {
-          //       // 1
-          //       parentOffset: [0, 0, 0.2],
-          //       childOffset: [0, 0, -0.1],
-          //       yprAxes: [0, 40, 0],
-          //       yprLimits: [40, 30, 0],
-          //     },
-          //   },
-          // ],
+          children: [
+            {
+              name: 'lower-arm-end',
+              // shape: new Jolt.CapsuleShape(0.15, 0.05),
+              shape: new Jolt.BoxShape(
+                new Jolt.Vec3(0.02, 0.02, 0.1)
+              ),
+              joint: {
+                // 1
+                parentOffset: [0, 0, 0.1],
+                childOffset: [0, 0, -0.1],
+                axis: { y: 0, p: 0, r: 0 },
+                limits: { r: 60 },
+                maxTorque: 0.1,
+              },
+              children: [
+                {
+                  name: 'hand',
+                  // shape: new Jolt.CapsuleShape(0.15, 0.05),
+                  shape: new Jolt.BoxShape(
+                    new Jolt.Vec3(0.03, 0.02, 0.04)
+                  ),
+                  joint: {
+                    // 1
+                    parentOffset: [0, 0, 0.1],
+                    childOffset: [0, 0, -0.04],
+                    axis: { y: 0, p: 0, r: 0 },
+                    limits: { y: 0, p: 60 },
+                    maxTorque: 0.1,
+                  },
+                },
+              ],
+            },
+          ],
         },
       ],
     }

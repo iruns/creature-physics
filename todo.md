@@ -28,7 +28,7 @@
 
   - [x] refactor to apply to each axis
 
-  - [ ] create 2 types of joints (from the 6-DoF): swing & roll
+  - [x] create 2 types of joints (from the 6-DoF): swing & roll
   - [ ] reactivate the relaxing force
 
 - [ ] visualize motor force

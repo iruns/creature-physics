@@ -11,6 +11,8 @@ import {
   RootPart,
   JointBlueprintDefaults,
   PartBlueprintDefaults,
+  YPSet,
+  RSet,
 } from './types'
 
 export const defaultPartBp: PartBlueprintDefaults = {
@@ -60,14 +62,13 @@ export function buildRagdollFromBlueprint(
       bakedPartBp
 
     if (!parentPartBp) {
-      if (!partBp.position || !partBp.yprRotation)
+      if (!partBp.position || !partBp.rotation)
         throw new Error(
           'Root part must have position and rotation'
         )
       worldPosition.fromArray(partBp.position)
-      worldRotation.copy(
-        quaternionFromYPR(...partBp.yprRotation)
-      )
+      const { y, p, r } = partBp.rotation
+      worldRotation.copy(quaternionFromYPR(y, p, r))
     } else {
       const { joint } = partBp
       if (!joint)
@@ -82,11 +83,14 @@ export function buildRagdollFromBlueprint(
 
       bakedPartBp.joint = bakedJoint
 
-      const { yprAxes, rotation, yawAxis, twistAxis } =
+      const { axis, rotation, yawAxis, twistAxis } =
         bakedJoint
 
       // Calculate joint rotation from the unprocessed axes
-      rotation.copy(quaternionFromYPR(...yprAxes))
+      const { y, p, r } = axis as YPSet & RSet
+      rotation.copy(
+        quaternionFromYPR(y ?? 0, p ?? 0, r ?? 0)
+      )
 
       // get processed joint axes from the rotation
       const matrix = new THREE.Matrix4()
@@ -191,9 +195,6 @@ export function buildRagdollFromBlueprint(
       jointSettings.MakeFixedAxis(
         Jolt.SixDOFConstraintSettings_EAxis_TranslationZ
       )
-      jointSettings.MakeFixedAxis(
-        Jolt.SixDOFConstraintSettings_EAxis_RotationX
-      )
 
       // Assign all properties, converting arrays to Jolt vectors as needed
       const jointBp = part.joint!
@@ -216,18 +217,46 @@ export function buildRagdollFromBlueprint(
       jointSettings.mAxisY2 = mAxisY2
 
       // Set limits
-      jointSettings.mSwingType = JoltType.ESwingType_Cone
-      jointSettings.SetLimitedAxis(
-        Jolt.SixDOFConstraintSettings_EAxis_RotationZ,
-        0,
-        degToRad(jointBp.ypLimits[1])
-      )
+      const { y, p, r } = jointBp.limits as YPSet & RSet
+      // if y & p
+      if (r === undefined) {
+        // Freeze the r
+        jointSettings.MakeFixedAxis(
+          Jolt.SixDOFConstraintSettings_EAxis_RotationX
+        )
 
-      jointSettings.SetLimitedAxis(
-        Jolt.SixDOFConstraintSettings_EAxis_RotationY,
-        0,
-        degToRad(jointBp.ypLimits[0])
-      )
+        // Set y & p limits
+        jointSettings.mSwingType = JoltType.ESwingType_Cone
+        jointSettings.SetLimitedAxis(
+          Jolt.SixDOFConstraintSettings_EAxis_RotationZ,
+          0,
+          degToRad(p)
+        )
+
+        jointSettings.SetLimitedAxis(
+          Jolt.SixDOFConstraintSettings_EAxis_RotationY,
+          0,
+          degToRad(y)
+        )
+      }
+      // if r
+      else {
+        // Freeze the y & p
+        jointSettings.MakeFixedAxis(
+          Jolt.SixDOFConstraintSettings_EAxis_RotationY
+        )
+        jointSettings.MakeFixedAxis(
+          Jolt.SixDOFConstraintSettings_EAxis_RotationZ
+        )
+
+        // set r limits
+        const limitRad = degToRad(r)
+        jointSettings.SetLimitedAxis(
+          Jolt.SixDOFConstraintSettings_EAxis_RotationX,
+          -limitRad,
+          limitRad
+        )
+      }
 
       jointSettings.mMaxFriction =
         jointBp.friction ?? defaultJointBp.friction
@@ -281,7 +310,7 @@ export function buildRagdollFromBlueprint(
       bp: partBp,
       body,
       parent,
-      torque: [0, 0, 0],
+      torque: { y: 0, p: 0 },
     }
 
     parts[name] = part

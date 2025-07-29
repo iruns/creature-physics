@@ -5,14 +5,14 @@ import {
   toThreeVec3,
   weakenBy,
 } from './math'
-import { Part } from './types'
+import { Part, RSet, YPSet } from './types'
 import { bodyInterface, Jolt } from './world'
 import * as THREE from 'three'
 
-const axisConfigs: { label: string; axis: number }[] = [
-  { label: 'Yaw', axis: 1 },
-  { label: 'Pitch', axis: 2 },
-  // { label: 'Roll', axis: 0 },
+const axisConfigs: { label: string; axis: string }[] = [
+  { label: 'Yaw', axis: 'y' },
+  { label: 'Pitch', axis: 'p' },
+  { label: 'Roll', axis: 'r' },
 ]
 
 // Store per-part torques to be applied each frame
@@ -53,7 +53,11 @@ export function createJointControls(
     jointDiv.style.marginBottom = '10px'
     jointDiv.innerHTML = `<div style="margin-bottom:2px;"><b>${name}</b></div>`
 
+    const limits = part.bp.joint!.limits as YPSet & RSet
+
     axisConfigs.forEach(({ label, axis }) => {
+      if (!limits[axis]) return
+
       const axisDiv = jointDiv.appendChild(
         document.createElement('div')
       )
@@ -107,6 +111,11 @@ export function updateJointTorques(
     Jolt.SixDOFConstraintSettings_EAxis_RotationY,
     Jolt.SixDOFConstraintSettings_EAxis_RotationZ,
   ]
+  const axisIdxs = {
+    y: 1,
+    p: 2,
+    r: 0,
+  }
 
   for (const name in parts) {
     const { joint, torque, bp, body, parent } = parts[name]
@@ -147,7 +156,7 @@ export function updateJointTorques(
     )
 
     // Get joint limits (in degrees)
-    const ypLimits = jointBP.ypLimits
+    const ypLimits = jointBP.limits
 
     // Scale each axis to [-1, 1] based on limits, do not clamp
     const rel = [
@@ -171,7 +180,8 @@ export function updateJointTorques(
       const { axis } = axisConfigs[a]
       const axisTorque = torque[axis]
 
-      const joltAxis = axes[axis]
+      const axisIdx = axisIdxs[axis]
+      const joltAxis = axes[axisIdx]
       const settings = joint.GetMotorSettings(joltAxis)
 
       settings.set_mMaxTorqueLimit(0)
@@ -186,16 +196,18 @@ export function updateJointTorques(
       // const sumTorque = swingTorque - centerringSwingTorque
 
       let motorState = Jolt.EMotorState_Velocity
+      let targetVelocityA = targetVelocity
       if (sumTorque > 0) {
         settings.set_mMaxTorqueLimit(sumTorque * maxTorque)
       } else if (sumTorque < 0) {
         settings.set_mMinTorqueLimit(sumTorque * minTorque)
-        targetVelocity = -targetVelocity
+        targetVelocityA = -targetVelocityA
       } else {
+        targetVelocityA = 0
         motorState = Jolt.EMotorState_Off
       }
 
-      velocityArray[axis] = targetVelocity
+      velocityArray[axisIdx] = targetVelocityA
       joint.SetMotorState(joltAxis, motorState)
     }
 

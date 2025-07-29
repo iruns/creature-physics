@@ -10,6 +10,8 @@ export type RSet = {
   r: number
 }
 
+type N = YPSet | RSet
+
 // Blueprint
 export type PartBlueprint = {
   name: string
@@ -17,7 +19,7 @@ export type PartBlueprint = {
   children?: PartBlueprint[]
   // Only root part has position/rotation
   position?: [number, number, number]
-  yprRotation?: [number, number, number]
+  rotation?: YPSet & RSet
   // Only for non-root parts
   joint?: JointBlueprint
 } & Partial<PartBlueprintDefaults>
@@ -31,9 +33,8 @@ export interface PartBlueprintDefaults {
 export type JointBlueprint = {
   parentOffset: [number, number, number] // Anchor in parent local space
   childOffset: [number, number, number] // Anchor in child local space
-  yprAxes: [number, number, number] // Yaw, pitch, roll axes in parent local space
-  ypLimits: [number, number] // Yaw, pitch limits in degrees
-  // rLimit: number // Roll limit in degrees
+  axis: YPSet & RSet // Yaw, pitch, roll axes in parent local space
+  limits: YPSet | RSet // Yaw and pitch OR roll limits in degrees
 } & Partial<JointBlueprintDefaults>
 
 export interface JointBlueprintDefaults {
@@ -72,7 +73,7 @@ export interface Part {
   // Only for non-root parts
   parent?: Part
   joint?: JoltType.SixDOFConstraint
-  torque: [number, number, number]
+  torque: YPSet | RSet
 }
 
 export type RootPart = Omit<Part, 'parent' | 'joint'>
