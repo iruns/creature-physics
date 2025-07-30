@@ -51,6 +51,7 @@ window.addEventListener('DOMContentLoaded', () => {
             childOffset: [0, 0, -0.1],
             axis: { y: 0, p: 0, r: 0 },
             limits: { y: 30, p: 60 },
+            maxTorque: 5,
           },
           children: [
             {
@@ -80,7 +81,7 @@ window.addEventListener('DOMContentLoaded', () => {
                     childOffset: [0, 0, -0.04],
                     axis: { y: 0, p: 0, r: 0 },
                     limits: { y: 0, p: 60 },
-                    maxTorque: 0.1,
+                    maxTorque: 0.05,
                   },
                 },
               ],

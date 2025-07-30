@@ -29,7 +29,9 @@
   - [x] refactor to apply to each axis
 
   - [x] create 2 types of joints (from the 6-DoF): swing & roll
-  - [ ] reactivate the relaxing force
+  - [x] reactivate the centering force
+    - only at near limitis, very strong at limit
+    - otherwise should turn off motor to use the friction (should be high)
 
 - [ ] visualize motor force
 - [ ] visualize other forces
@@ -40,9 +42,6 @@
 - [ ] use bp size to set the viz size
 
 - [ ] symmetry
-
-- [ ] relaxing forces
-- [ ] limit forces
 
 - [ ] customize
 

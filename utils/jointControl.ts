@@ -1,19 +1,21 @@
 import { defaultJointBp } from './creatureBuilder'
 import {
+  degToRad,
   exponentiate,
+  scale,
   toThreeQuat,
   toThreeVec3,
   weakenBy,
 } from './math'
-import { Part, RSet, YPSet } from './types'
-import { bodyInterface, Jolt } from './world'
+import {
+  Axis,
+  axisConfigs,
+  Part,
+  RSet,
+  YPSet,
+} from './types'
+import { bodyInterface, Jolt, joltAxes } from './world'
 import * as THREE from 'three'
-
-const axisConfigs: { label: string; axis: string }[] = [
-  { label: 'Yaw', axis: 'y' },
-  { label: 'Pitch', axis: 'p' },
-  { label: 'Roll', axis: 'r' },
-]
 
 // Store per-part torques to be applied each frame
 // Change: Part.torques is Record<string, THREE.Vector3>
@@ -55,8 +57,8 @@ export function createJointControls(
 
     const limits = part.bp.joint!.limits as YPSet & RSet
 
-    axisConfigs.forEach(({ label, axis }) => {
-      if (!limits[axis]) return
+    axisConfigs.forEach(({ label, rAxis }) => {
+      if (!limits[rAxis]) return
 
       const axisDiv = jointDiv.appendChild(
         document.createElement('div')
@@ -75,9 +77,9 @@ export function createJointControls(
       leftButton.style.flex = '0 0 auto'
 
       leftButton.onmousedown = () =>
-        (part.torque[axis] = -1)
+        (part.torque[rAxis] = -1)
       leftButton.onmouseup = leftButton.onmouseleave = () =>
-        (part.torque[axis] = 0)
+        (part.torque[rAxis] = 0)
 
       // Axis label (centered)
       const labelDiv = axisDiv.appendChild(
@@ -96,9 +98,9 @@ export function createJointControls(
       rightButton.style.flex = '0 0 auto'
 
       rightButton.onmousedown = () =>
-        (part.torque[axis] = 1)
+        (part.torque[rAxis] = 1)
       rightButton.onmouseup = rightButton.onmouseleave =
-        () => (part.torque[axis] = 0)
+        () => (part.torque[rAxis] = 0)
     })
   }
 }
@@ -106,17 +108,6 @@ export function createJointControls(
 export function updateJointTorques(
   parts: Record<string, Part>
 ) {
-  const axes = [
-    Jolt.SixDOFConstraintSettings_EAxis_RotationX,
-    Jolt.SixDOFConstraintSettings_EAxis_RotationY,
-    Jolt.SixDOFConstraintSettings_EAxis_RotationZ,
-  ]
-  const axisIdxs = {
-    y: 1,
-    p: 2,
-    r: 0,
-  }
-
   for (const name in parts) {
     const { joint, torque, bp, body, parent } = parts[name]
     if (!joint) continue
@@ -152,48 +143,58 @@ export function updateJointTorques(
     // Convert to Euler angles (in radians)
     const euler = new THREE.Euler().setFromQuaternion(
       qRel,
-      'YXZ'
+      'YZX'
     )
+    // swap x and z
+    const tempX = euler.x
+    euler.x = euler.z
+    euler.z = tempX
 
     // Get joint limits (in degrees)
-    const ypLimits = jointBP.limits
+    const limits = jointBP.limits
 
-    // Scale each axis to [-1, 1] based on limits, do not clamp
-    const rel = [
-      ypLimits[0]
-        ? euler.y / THREE.MathUtils.degToRad(ypLimits[0])
-        : 0,
-      ypLimits[1]
-        ? euler.x / THREE.MathUtils.degToRad(ypLimits[1])
-        : 0,
-    ]
-
-    // rel[0]: yaw, rel[1]: pitch, rel[2]: roll, un-clamped
-    // You can use rel[] for feedback or visualization
-
-    let velocity = 0
     const velocityArray: [number, number, number] = [
       0, 0, 0,
     ]
 
     for (let a = 0; a < axisConfigs.length; a++) {
-      const { axis } = axisConfigs[a]
-      const axisTorque = torque[axis]
+      const { rAxis, axis, idx } = axisConfigs[a]
 
-      const axisIdx = axisIdxs[axis]
-      const joltAxis = axes[axisIdx]
+      const limit = limits[rAxis]
+      if (!limit) continue
+
+      const axisTorque = torque[rAxis]
+
+      const joltAxis = joltAxes[axis]
       const settings = joint.GetMotorSettings(joltAxis)
 
       settings.set_mMaxTorqueLimit(0)
       settings.set_mMinTorqueLimit(0)
 
-      const centerringSwingTorque = weakenBy(
-        exponentiate(rel[a], 5),
-        0.6
-      )
+      // get scaled angle to limits,
+      // with 0 for at the center, -1 at one limit and 1 at the other
+      const scaledAngle = euler[axis] / degToRad(limit)
+      let centeringTorque = 0
+      if (scaledAngle) {
+        centeringTorque = scale(
+          0,
+          1,
+          0.75,
+          1,
+          Math.abs(scaledAngle),
+          true
+        )
+        centeringTorque = Math.max(0, centeringTorque)
 
-      const sumTorque = axisTorque
-      // const sumTorque = swingTorque - centerringSwingTorque
+        centeringTorque **= 2
+        centeringTorque *= maxTorque * 0.01
+
+        if (scaledAngle > 0)
+          centeringTorque = -centeringTorque
+      }
+
+      // const sumTorque = axisTorque
+      const sumTorque = axisTorque - centeringTorque
 
       let motorState = Jolt.EMotorState_Velocity
       let targetVelocityA = targetVelocity
@@ -207,7 +208,7 @@ export function updateJointTorques(
         motorState = Jolt.EMotorState_Off
       }
 
-      velocityArray[axisIdx] = targetVelocityA
+      velocityArray[idx] = targetVelocityA
       joint.SetMotorState(joltAxis, motorState)
     }
 

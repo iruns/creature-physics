@@ -85,3 +85,55 @@ export function weakenBy(
   result = Math.max(0, result - factor)
   return value >= 0 ? result : -result
 }
+
+// Mapping values
+export function lerp(
+  min: number,
+  max: number,
+  t: number,
+  clampResult?: boolean
+): number {
+  if (clampResult) t = clamp(0, 1, t)
+  return min + (max - min) * t
+}
+export function unlerp(
+  min: number,
+  max: number,
+  v: number,
+  clampResult?: boolean,
+  /** Return value if the min and max are the same */
+  zeroWidthValue = 0.5
+): number {
+  // if everything is identical, return zeroWidthValue
+  if (v == max && v == min) return zeroWidthValue
+
+  const delta = max - min
+
+  let result = (v - min) / delta
+  if (clampResult) result = clamp(0, 1, result)
+  return result
+}
+
+export function scale(
+  trgMin: number,
+  trgMax: number,
+  srcMin: number,
+  srcMax: number,
+  srcT: number,
+  clampResult?: boolean
+): number {
+  return lerp(
+    trgMin,
+    trgMax,
+    unlerp(srcMin, srcMax, srcT),
+    clampResult
+  )
+}
+
+export function clamp(
+  min: number,
+  max: number,
+  n: number
+): number {
+  return Math.max(Math.min(n, max), min)
+}

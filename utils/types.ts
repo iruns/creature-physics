@@ -1,5 +1,39 @@
 import type JoltType from 'jolt-physics'
+import Jolt from 'jolt-physics'
 import * as THREE from 'three'
+
+export type Axis = 'x' | 'y' | 'z'
+export type RotationAxis = 'y' | 'p' | 'r'
+
+export const axisConfigs: {
+  label: string
+  rAxis: RotationAxis
+  axis: Axis
+  idx: number
+  joltAxis: number
+}[] = [
+  {
+    label: 'Yaw',
+    rAxis: 'y',
+    axis: 'y',
+    idx: 1,
+    joltAxis: Jolt.SixDOFConstraintSettings_EAxis_RotationY,
+  },
+  {
+    label: 'Pitch',
+    rAxis: 'p',
+    axis: 'z',
+    idx: 2,
+    joltAxis: Jolt.SixDOFConstraintSettings_EAxis_RotationZ,
+  },
+  {
+    label: 'Roll',
+    rAxis: 'r',
+    axis: 'x',
+    idx: 0,
+    joltAxis: Jolt.SixDOFConstraintSettings_EAxis_RotationX,
+  },
+]
 
 // TODO, use these
 export type YPSet = {

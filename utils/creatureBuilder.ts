@@ -1,4 +1,4 @@
-import { Jolt } from './world'
+import { Jolt, joltAxes } from './world'
 import JoltType from 'jolt-physics'
 import * as THREE from 'three'
 import { degToRad, quaternionFromYPR } from './math'
@@ -303,7 +303,7 @@ export function buildRagdollFromBlueprint(
       .TryGetBody(ragdoll.GetBodyID(idx))
     bodies[name] = body
 
-    body.GetMotionProperties().SetAngularDamping(0.2)
+    body.GetMotionProperties().SetAngularDamping(0.5)
     body.GetMotionProperties().GetAccumulatedForce
 
     const part: Part = {
@@ -322,14 +322,15 @@ export function buildRagdollFromBlueprint(
       )
       joints[name] = joint
 
-      joint.SetMotorState(
-        Jolt.SixDOFConstraintSettings_EAxis_RotationY,
-        Jolt.EMotorState_Velocity
-      )
-      joint.SetMotorState(
-        Jolt.SixDOFConstraintSettings_EAxis_RotationZ,
-        Jolt.EMotorState_Velocity
-      )
+      for (const key in joltAxes) {
+        const joltAxis = joltAxes[key]
+        // start motor turned off
+        joint.SetMotorState(joltAxis, Jolt.EMotorState_Off)
+        joint.SetMaxFriction(
+          joltAxis,
+          jointBP.friction ?? defaultJointBp.friction
+        )
+      }
 
       part.joint = joint
     }

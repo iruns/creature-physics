@@ -1,9 +1,16 @@
 import type JoltType from 'jolt-physics'
+import { Axis } from './types'
 
 let jolt: JoltType.JoltInterface
 export let Jolt: typeof JoltType
 export let physicsSystem: JoltType.PhysicsSystem
 export let bodyInterface: JoltType.BodyInterface
+
+export const joltAxes: Record<Axis, number> = {
+  x: 0,
+  y: 0,
+  z: 0,
+}
 
 export function initWorld(JoltArg: typeof JoltType) {
   Jolt = JoltArg
@@ -16,6 +23,11 @@ export function initWorld(JoltArg: typeof JoltType) {
 
   jolt = new Jolt.JoltInterface(settings)
   Jolt.destroy(settings)
+
+  joltAxes.x = Jolt.SixDOFConstraintSettings_EAxis_RotationX
+  joltAxes.y = Jolt.SixDOFConstraintSettings_EAxis_RotationY
+  joltAxes.z = Jolt.SixDOFConstraintSettings_EAxis_RotationZ
+
   physicsSystem = jolt.GetPhysicsSystem()
   bodyInterface = physicsSystem.GetBodyInterface()
 
