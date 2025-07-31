@@ -1,4 +1,8 @@
-import { Jolt, joltAxes } from './world'
+import {
+  Jolt,
+  axisConfigs,
+  jointAxisConfigs,
+} from './world'
 import JoltType from 'jolt-physics'
 import * as THREE from 'three'
 import { degToRad, quaternionFromYPR } from './math'
@@ -13,16 +17,18 @@ import {
   PartBlueprintDefaults,
   YPSet,
   RSet,
+  PartShape,
 } from './types'
 
 export const defaultPartBp: PartBlueprintDefaults = {
+  color: 0x888888,
   mass: 1,
   friction: 0.5,
   restitution: 0.1,
 }
 
 export const defaultJointBp: JointBlueprintDefaults = {
-  friction: 0.2,
+  friction: 0.1,
   // maxTorque: 0.0,
   maxTorque: 0.5,
   // maxTorque: 5,
@@ -35,11 +41,11 @@ export function buildRagdollFromBlueprint(
   layer: number = 1
 ): BuildResult {
   // Prepare fixed axes
-  const mAxisY2 = new Jolt.Vec3(0, 1, 0)
-  const mAxisX2 = new Jolt.Vec3(0, 0, 1)
+  const mAxisX2 = new Jolt.Vec3(0, 1, 0)
+  const mAxisY2 = new Jolt.Vec3(0, 0, 1)
 
   // Deeply clone the blueprint and process, applying world transforms
-  const processedPartBlueprints: BakedPartBlueprint[] = []
+  const bakedPartBps: BakedPartBlueprint[] = []
   const nameToIndex: Record<string, number> = {}
 
   function bakePartBp(
@@ -49,12 +55,16 @@ export function buildRagdollFromBlueprint(
     const { children } = partBp
 
     const bakedPartBp: BakedPartBlueprint = {
+      ...defaultPartBp,
       ...partBp,
-      idx: processedPartBlueprints.length,
+      idx: bakedPartBps.length,
+
       parent: parentPartBp,
       children: partBp.children as BakedPartBlueprint[],
+
       worldPosition: new THREE.Vector3(),
       worldRotation: new THREE.Quaternion(),
+
       joint: undefined,
     }
 
@@ -66,7 +76,7 @@ export function buildRagdollFromBlueprint(
         throw new Error(
           'Root part must have position and rotation'
         )
-      worldPosition.fromArray(partBp.position)
+      worldPosition.copy(partBp.position)
       const { y, p, r } = partBp.rotation
       worldRotation.copy(quaternionFromYPR(y, p, r))
     } else {
@@ -74,13 +84,33 @@ export function buildRagdollFromBlueprint(
       if (!joint)
         throw new Error('Non-root part must have a joint')
 
+      const bakedParentOffset = new THREE.Vector3()
+      const bakedChildOffset = new THREE.Vector3()
+
+      // calculate baked offsets
+      axisConfigs.forEach((config) => {
+        const { rawAxis, partAxis } = config
+        bakedParentOffset[rawAxis] =
+          joint.parentOffset[partAxis] ?? 0
+        bakedChildOffset[rawAxis] =
+          joint.childOffset[partAxis] ?? 0
+      })
+
       const bakedJoint: BakedJointBlueprint = {
+        ...defaultJointBp,
         ...joint,
+        parentOffset: {
+          ...joint.parentOffset,
+          baked: bakedParentOffset,
+        },
+        childOffset: {
+          ...joint.childOffset,
+          baked: bakedChildOffset,
+        },
         rotation: new THREE.Quaternion(),
         yawAxis: new THREE.Vector3(),
         twistAxis: new THREE.Vector3(),
       }
-
       bakedPartBp.joint = bakedJoint
 
       const { axis, rotation, yawAxis, twistAxis } =
@@ -96,15 +126,15 @@ export function buildRagdollFromBlueprint(
       const matrix = new THREE.Matrix4()
       matrix.makeRotationFromQuaternion(rotation)
 
-      yawAxis.setFromMatrixColumn(matrix, 1).normalize()
-      twistAxis.setFromMatrixColumn(matrix, 2).normalize()
+      yawAxis.setFromMatrixColumn(matrix, 2).normalize()
+      twistAxis.setFromMatrixColumn(matrix, 1).normalize()
 
       // use joint and parentPart to calculate the world rotation
       worldRotation.copy(rotation)
       worldRotation.multiply(parentPartBp.worldRotation)
     }
 
-    processedPartBlueprints.push(bakedPartBp)
+    bakedPartBps.push(bakedPartBp)
     nameToIndex[bakedPartBp.name] = idx
 
     if (children) {
@@ -120,8 +150,8 @@ export function buildRagdollFromBlueprint(
 
   // Build skeleton
   const skeleton = new Jolt.Skeleton()
-  for (let i = 0; i < processedPartBlueprints.length; ++i) {
-    const part = processedPartBlueprints[i]
+  for (let i = 0; i < bakedPartBps.length; ++i) {
+    const part = bakedPartBps[i]
     const jName = new Jolt.JPHString(
       part.name,
       part.name.length
@@ -137,45 +167,72 @@ export function buildRagdollFromBlueprint(
   const refObject = new THREE.Object3D()
   const settings = new Jolt.RagdollSettings()
   settings.mSkeleton = skeleton
-  settings.mParts.resize(processedPartBlueprints.length)
-  for (let i = 0; i < processedPartBlueprints.length; ++i) {
-    const part = processedPartBlueprints[i]
+  settings.mParts.resize(bakedPartBps.length)
+  for (let i = 0; i < bakedPartBps.length; ++i) {
+    const partBp = bakedPartBps[i]
     const settingsPart = settings.mParts.at(i)
 
-    settingsPart.SetShape(part.shape)
+    const { shape: shapeType, size } = partBp
+
+    let shape: JoltType.Shape
+    const hY = size.l / 2
+    const hX = (size.w ?? 0 / 2) || hY
+    const hZ = (size.t ?? 0 / 2) || hX
+    const roundingR = Math.min(hX, hY, hZ, size.r ?? 0)
+    switch (shapeType) {
+      case PartShape.Sphere:
+        shape = new Jolt.SphereShape(hY)
+        break
+      case PartShape.Cylinder:
+        shape = new Jolt.CylinderShape(hY, hZ, roundingR)
+        break
+      case PartShape.Capsule:
+        shape = new Jolt.CapsuleShape(hY, hZ)
+        break
+      default:
+        shape = new Jolt.BoxShape(
+          new Jolt.Vec3(hX, hY, hZ),
+          roundingR
+        )
+        break
+    }
+    settingsPart.SetShape(shape)
+
     settingsPart.mRotation = new Jolt.Quat(
-      ...part.worldRotation.toArray()
+      ...partBp.worldRotation.toArray()
     )
 
-    const { parent } = part
+    const { parent } = partBp
 
     // if root
     if (!parent) {
-      settingsPart.mPosition = new Jolt.RVec3(
-        ...(part.position || [0, 0, 0])
-      )
+      const { x, y, z } = partBp.position!
+      settingsPart.mPosition = new Jolt.RVec3(x, y, z)
     } else {
       // calculate world position of joint to this part
-      refObject.quaternion.copy(part.worldRotation)
+      refObject.quaternion.copy(partBp.worldRotation)
       refObject.position.set(0, 0, 0)
+      const bakedChildOffset =
+        partBp.joint!.childOffset.baked
       const jointPositionToPart = refObject.localToWorld(
-        new THREE.Vector3(...part.joint!.childOffset)
+        bakedChildOffset.clone()
       )
 
       // calculate world position of joint to parentPart
       refObject.quaternion.copy(parent.worldRotation)
       refObject.position.copy(parent.worldPosition)
-      const jointPositionToparentPart =
-        refObject.localToWorld(
-          new THREE.Vector3(...part.joint!.parentOffset)
-        )
+      const bakedParentOffset =
+        partBp.joint!.parentOffset.baked
+      const jointPositionToParentPart =
+        refObject.localToWorld(bakedParentOffset.clone())
 
       // set position to the difference
-      part.worldPosition.copy(
-        jointPositionToparentPart.sub(jointPositionToPart)
+      partBp.worldPosition.copy(
+        jointPositionToParentPart.sub(jointPositionToPart)
       )
+
       settingsPart.mPosition = new Jolt.RVec3(
-        ...part.worldPosition.toArray()
+        ...partBp.worldPosition.toArray()
       )
 
       const jointSettings = (settingsPart.mToParent =
@@ -197,12 +254,12 @@ export function buildRagdollFromBlueprint(
       )
 
       // Assign all properties, converting arrays to Jolt vectors as needed
-      const jointBp = part.joint!
+      const jointBp = partBp.joint!
       jointSettings.mPosition1 = new Jolt.RVec3(
-        ...jointBp.parentOffset
+        ...bakedParentOffset.toArray()
       )
       jointSettings.mPosition2 = new Jolt.RVec3(
-        ...jointBp.childOffset
+        ...bakedChildOffset.toArray()
       )
 
       // Set Axes
@@ -222,19 +279,19 @@ export function buildRagdollFromBlueprint(
       if (r === undefined) {
         // Freeze the r
         jointSettings.MakeFixedAxis(
-          Jolt.SixDOFConstraintSettings_EAxis_RotationX
+          jointAxisConfigs.r.joltAxis
         )
 
         // Set y & p limits
         jointSettings.mSwingType = JoltType.ESwingType_Cone
         jointSettings.SetLimitedAxis(
-          Jolt.SixDOFConstraintSettings_EAxis_RotationZ,
+          jointAxisConfigs.p.joltAxis,
           0,
           degToRad(p)
         )
 
         jointSettings.SetLimitedAxis(
-          Jolt.SixDOFConstraintSettings_EAxis_RotationY,
+          jointAxisConfigs.y.joltAxis,
           0,
           degToRad(y)
         )
@@ -243,16 +300,16 @@ export function buildRagdollFromBlueprint(
       else {
         // Freeze the y & p
         jointSettings.MakeFixedAxis(
-          Jolt.SixDOFConstraintSettings_EAxis_RotationY
+          jointAxisConfigs.y.joltAxis
         )
         jointSettings.MakeFixedAxis(
-          Jolt.SixDOFConstraintSettings_EAxis_RotationZ
+          jointAxisConfigs.p.joltAxis
         )
 
         // set r limits
         const limitRad = degToRad(r)
         jointSettings.SetLimitedAxis(
-          Jolt.SixDOFConstraintSettings_EAxis_RotationX,
+          jointAxisConfigs.r.joltAxis,
           -limitRad,
           limitRad
         )
@@ -296,6 +353,7 @@ export function buildRagdollFromBlueprint(
       name,
       joint: jointBP,
       children: childrenBps,
+      size,
     } = partBp
 
     const body = physicsSystem
@@ -309,8 +367,21 @@ export function buildRagdollFromBlueprint(
     const part: Part = {
       bp: partBp,
       body,
+      vizRadius: 0,
       parent,
-      torque: { y: 0, p: 0 },
+      torque: { y: 0, p: 0, r: 0 },
+    }
+
+    switch (partBp.shape) {
+      case PartShape.Sphere:
+      case PartShape.Cylinder:
+      case PartShape.Capsule:
+        part.vizRadius = size.w ?? size.l
+        break
+      default:
+        part.vizRadius =
+          Math.max(size.w ?? 0, size.t ?? 0) ?? size.l
+        break
     }
 
     parts[name] = part
@@ -322,15 +393,15 @@ export function buildRagdollFromBlueprint(
       )
       joints[name] = joint
 
-      for (const key in joltAxes) {
-        const joltAxis = joltAxes[key]
+      axisConfigs.forEach((config) => {
+        const { joltAxis } = config
         // start motor turned off
         joint.SetMotorState(joltAxis, Jolt.EMotorState_Off)
         joint.SetMaxFriction(
           joltAxis,
           jointBP.friction ?? defaultJointBp.friction
         )
-      }
+      })
 
       part.joint = joint
     }
@@ -344,9 +415,7 @@ export function buildRagdollFromBlueprint(
 
     return part
   }
-  const creature = fillPart(
-    processedPartBlueprints[0]
-  ) as RootPart
+  const creature = fillPart(bakedPartBps[0]) as RootPart
 
   return {
     creature,

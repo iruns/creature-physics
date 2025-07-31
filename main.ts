@@ -1,13 +1,12 @@
-import * as THREE from 'three'
 import initJolt from 'jolt-physics'
-import { Part, PartBlueprint } from './utils/types'
+import { Part, PartBlueprint, PartViz } from './utils/types'
 import { buildRagdollFromBlueprint } from './utils/creatureBuilder'
 import {
   addToThreeScene,
   camera,
   initRenderer,
   render,
-  visualizeJointLimits,
+  visualizePart,
 } from './utils/visualization'
 import {
   physicsSystem,
@@ -28,65 +27,70 @@ window.addEventListener('DOMContentLoaded', () => {
     const floorBody = createFloor()
     addToThreeScene(floorBody, 0x888888)
 
+    Jolt.BoxShape
+    Jolt.CapsuleShape
+    Jolt.CylinderShape
+    Jolt.SphereShape
+
     // Blueprint for minimal skeleton: upper arm and lower arm
     const blueprint: PartBlueprint = {
       name: 'upper-arm',
-      shape: new Jolt.BoxShape(
-        new Jolt.Vec3(0.1, 0.05, 0.2)
-      ),
-      // shape: new Jolt.CapsuleShape(0.15, 0.06),
-      position: [0, 0.5, 0],
-      // position: [0, 0.6, 0],
+      // shape: PartShape.Cylinder,
+      size: { l: 0.4, w: 0.06, t: 0.03, r: 0 },
+      position: { x: 0, y: 0.5, z: 0 },
       rotation: { y: 0, p: 0, r: 0 },
       children: [
         {
           name: 'lower-arm',
-          // shape: new Jolt.CapsuleShape(0.15, 0.05),
-          shape: new Jolt.BoxShape(
-            new Jolt.Vec3(0.02, 0.02, 0.1)
-          ),
+          // shape: PartShape.Capsule,
+          // shape: PartShape.Cylinder,
+          size: { l: 0.4, w: 0.04, t: 0.02, r: 0 },
+          // shape: PartShape.Box,
+          // size: { l: 0.4, w: 0.04, r: 0.02 },
           joint: {
             // 1
-            parentOffset: [0, 0, 0.2],
-            childOffset: [0, 0, -0.1],
+            parentOffset: { l: 0.2 },
+            childOffset: { l: -0.2 },
             axis: { y: 0, p: 0, r: 0 },
             limits: { y: 30, p: 60 },
             maxTorque: 5,
           },
-          children: [
-            {
-              name: 'lower-arm-end',
-              // shape: new Jolt.CapsuleShape(0.15, 0.05),
-              shape: new Jolt.BoxShape(
-                new Jolt.Vec3(0.02, 0.02, 0.1)
-              ),
-              joint: {
-                // 1
-                parentOffset: [0, 0, 0.1],
-                childOffset: [0, 0, -0.1],
-                axis: { y: 0, p: 0, r: 0 },
-                limits: { r: 60 },
-                maxTorque: 0.1,
-              },
-              children: [
-                {
-                  name: 'hand',
-                  // shape: new Jolt.CapsuleShape(0.15, 0.05),
-                  shape: new Jolt.BoxShape(
-                    new Jolt.Vec3(0.03, 0.02, 0.04)
-                  ),
-                  joint: {
-                    // 1
-                    parentOffset: [0, 0, 0.1],
-                    childOffset: [0, 0, -0.04],
-                    axis: { y: 0, p: 0, r: 0 },
-                    limits: { y: 0, p: 60 },
-                    maxTorque: 0.05,
-                  },
-                },
-              ],
-            },
-          ],
+          // children: [
+          //   {
+          //     name: 'lower-arm-end',
+          //     // shape: new Jolt.CapsuleShape(0.15, 0.05),
+          //     // shape: new Jolt.BoxShape(
+          //     //   new Jolt.Vec3(0.02, 0.02, 0.1)
+          //     // ),
+          //     size: { l: 0.2, w: 0.04, r: 0 },
+          //     joint: {
+          //       // 1
+          //       parentOffset: [0, 0, 0.2],
+          //       childOffset: [0, 0, -0.1],
+          //       axis: { y: 0, p: 0, r: 0 },
+          //       limits: { r: 60 },
+          //       maxTorque: 0.1,
+          //     },
+          //     children: [
+          //       {
+          //         name: 'hand',
+          //         // shape: new Jolt.CapsuleShape(0.15, 0.05),
+          //         // shape: new Jolt.BoxShape(
+          //         //   new Jolt.Vec3(0.03, 0.02, 0.04)
+          //         // ),
+          //         size: { l: 0.08, w: 0.04, t: 0.03, r: 0 },
+          //         joint: {
+          //           // 1
+          //           parentOffset: [0, 0, 0.1],
+          //           childOffset: [0, 0, -0.04],
+          //           axis: { y: 0, p: 0, r: 0 },
+          //           limits: { y: 0, p: 60 },
+          //           maxTorque: 0.05,
+          //         },
+          //       },
+          //     ],
+          //   },
+          // ],
         },
       ],
     }
@@ -101,34 +105,28 @@ window.addEventListener('DOMContentLoaded', () => {
     createJointControls(parts)
 
     // Recursively add bodies to Three.js scene using blueprint and bodies map
-    const threeObjs: Record<string, THREE.Mesh> = {}
-    function toInterface(part: Part) {
-      const { bp, parent, children, body } = part
-
-      const threeObj = addToThreeScene(body, 0xff00ff)
-      threeObj.traverse((obj: any) => {
-        if (obj.material) {
-          obj.material.transparent = true
-          obj.material.opacity = 0.3
-          obj.material.depthWrite = false
-        }
-      })
-      threeObjs[bp.name] = threeObj
+    function toInterface(
+      part: Part,
+      parentPartViz?: PartViz
+    ) {
+      const { children } = part
 
       // If this part has a joint, visualize its limits at the joint anchor
-      if (parent && bp.joint) {
-        visualizeJointLimits(
-          threeObjs[parent.bp.name],
-          bp.joint
-        )
-      }
+      const partViz = visualizePart(part, parentPartViz)
 
       if (children) {
+        partViz.userData.children = {}
         for (const name in children)
-          toInterface(children[name])
+          partViz.userData.children[name] = toInterface(
+            children[name],
+            partViz
+          )
       }
+
+      return partViz
     }
-    toInterface(creature)
+
+    const creatureViz = toInterface(creature)
 
     camera.position.z = 4
     camera.position.y = 1.5

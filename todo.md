@@ -33,24 +33,26 @@
     - only at near limitis, very strong at limit
     - otherwise should turn off motor to use the friction (should be high)
 
+- [x] split part bp size and shape variables
+- [x] use bp size to set the viz size
+
 - [ ] visualize motor force
+  - add at creation, based on limits
+    - use arrow helpers from three?
+  - show/hide and scale at update
 - [ ] visualize other forces
 
+  - idem
   - GetTotalLambdaRotation
 
-- [ ] split part bp size and shape variables
-- [ ] use bp size to set the viz size
-
-- [ ] symmetry
+- [ ] use anchors
 
 - [ ] customize
 
   - [ ] mass
   - [ ] material
 
-- check for swing and twist only joint types
-
-  - twist-only might be replaced by HingeConstraint
+- [ ] symmetry
 
 ======
 

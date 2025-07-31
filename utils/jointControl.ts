@@ -1,20 +1,7 @@
 import { defaultJointBp } from './creatureBuilder'
-import {
-  degToRad,
-  exponentiate,
-  scale,
-  toThreeQuat,
-  toThreeVec3,
-  weakenBy,
-} from './math'
-import {
-  Axis,
-  axisConfigs,
-  Part,
-  RSet,
-  YPSet,
-} from './types'
-import { bodyInterface, Jolt, joltAxes } from './world'
+import { degToRad, scale, toThreeQuat } from './math'
+import { Part, RSet, YPSet } from './types'
+import { Jolt, axisConfigs, rawAxisConfigs } from './world'
 import * as THREE from 'three'
 
 // Store per-part torques to be applied each frame
@@ -57,8 +44,8 @@ export function createJointControls(
 
     const limits = part.bp.joint!.limits as YPSet & RSet
 
-    axisConfigs.forEach(({ label, rAxis }) => {
-      if (!limits[rAxis]) return
+    axisConfigs.forEach(({ jointLabel, jointAxis }) => {
+      if (!limits[jointAxis]) return
 
       const axisDiv = jointDiv.appendChild(
         document.createElement('div')
@@ -69,6 +56,8 @@ export function createJointControls(
       axisDiv.style.gap = '8px'
       axisDiv.style.width = '100%'
 
+      const torque = part.torque
+
       // Left button
       const leftButton = axisDiv.appendChild(
         document.createElement('button')
@@ -77,15 +66,15 @@ export function createJointControls(
       leftButton.style.flex = '0 0 auto'
 
       leftButton.onmousedown = () =>
-        (part.torque[rAxis] = -1)
+        (torque[jointAxis] = -1)
       leftButton.onmouseup = leftButton.onmouseleave = () =>
-        (part.torque[rAxis] = 0)
+        (torque[jointAxis] = 0)
 
       // Axis label (centered)
       const labelDiv = axisDiv.appendChild(
         document.createElement('span')
       )
-      labelDiv.textContent = label
+      labelDiv.textContent = jointLabel
       labelDiv.style.flex = '1 1 auto'
       labelDiv.style.textAlign = 'center'
       labelDiv.style.fontWeight = 'bold'
@@ -98,9 +87,9 @@ export function createJointControls(
       rightButton.style.flex = '0 0 auto'
 
       rightButton.onmousedown = () =>
-        (part.torque[rAxis] = 1)
+        (torque[jointAxis] = 1)
       rightButton.onmouseup = rightButton.onmouseleave =
-        () => (part.torque[rAxis] = 0)
+        () => (torque[jointAxis] = 0)
     })
   }
 }
@@ -145,27 +134,22 @@ export function updateJointTorques(
       qRel,
       'YZX'
     )
-    // swap x and z
-    const tempX = euler.x
-    euler.x = euler.z
-    euler.z = tempX
 
     // Get joint limits (in degrees)
-    const limits = jointBP.limits
+    const limits = jointBP.limits as YPSet & RSet
 
     const velocityArray: [number, number, number] = [
       0, 0, 0,
     ]
 
     for (let a = 0; a < axisConfigs.length; a++) {
-      const { rAxis, axis, idx } = axisConfigs[a]
+      const { jointAxis, rawAxis, joltAxis, torqueIdx } =
+        axisConfigs[a]
 
-      const limit = limits[rAxis]
+      const limit = limits[jointAxis] ?? 0
       if (!limit) continue
 
-      const axisTorque = torque[rAxis]
-
-      const joltAxis = joltAxes[axis]
+      const axisTorque = torque[jointAxis]
       const settings = joint.GetMotorSettings(joltAxis)
 
       settings.set_mMaxTorqueLimit(0)
@@ -173,23 +157,24 @@ export function updateJointTorques(
 
       // get scaled angle to limits,
       // with 0 for at the center, -1 at one limit and 1 at the other
-      const scaledAngle = euler[axis] / degToRad(limit)
+      const scaledAngle = euler[rawAxis] / degToRad(limit)
+
       let centeringTorque = 0
       if (scaledAngle) {
         centeringTorque = scale(
           0,
           1,
-          0.75,
+          0.4,
           1,
           Math.abs(scaledAngle),
           true
         )
         centeringTorque = Math.max(0, centeringTorque)
 
-        centeringTorque **= 2
-        centeringTorque *= maxTorque * 0.01
+        centeringTorque **= 3
+        centeringTorque *= maxTorque * 0.1
 
-        if (scaledAngle > 0)
+        if (scaledAngle < 0)
           centeringTorque = -centeringTorque
       }
 
@@ -198,6 +183,8 @@ export function updateJointTorques(
 
       let motorState = Jolt.EMotorState_Velocity
       let targetVelocityA = targetVelocity
+      if (!axisTorque) targetVelocityA *= 0.01
+
       if (sumTorque > 0) {
         settings.set_mMaxTorqueLimit(sumTorque * maxTorque)
       } else if (sumTorque < 0) {
@@ -208,7 +195,7 @@ export function updateJointTorques(
         motorState = Jolt.EMotorState_Off
       }
 
-      velocityArray[idx] = targetVelocityA
+      velocityArray[torqueIdx] = targetVelocityA
       joint.SetMotorState(joltAxis, motorState)
     }
 

@@ -1,14 +1,8 @@
 import * as THREE from 'three'
-import WebGL from 'three/examples/jsm/capabilities/WebGL.js'
 import { OrbitControls } from 'three/examples/jsm/Addons.js'
 import type JoltType from 'jolt-physics'
 import { Jolt } from './world'
-import {
-  BakedJointBlueprint,
-  Part,
-  RSet,
-  YPSet,
-} from './types'
+import { Part, RSet, PartViz, YPSet } from './types'
 import { degToRad, toThreeQuat, toThreeVec3 } from './math'
 
 export let container: HTMLElement
@@ -16,7 +10,8 @@ export let scene: THREE.Scene
 export let renderer: THREE.WebGLRenderer
 export let camera: THREE.PerspectiveCamera
 export let controls: OrbitControls
-export const dynamicObjects: THREE.Object3D[] = []
+
+export const meshes: THREE.Mesh[] = []
 
 export function initRenderer() {
   container = document.getElementById('container')!
@@ -128,12 +123,13 @@ export function createMeshForShape(
 }
 
 export function render(deltaTime: number) {
-  for (let i = 0, il = dynamicObjects.length; i < il; i++) {
-    const objThree = dynamicObjects[i]
-    if (!objThree.userData || !objThree.userData.body)
-      continue
-    const body = objThree.userData.body as JoltType.Body
-    objThree.position.copy(
+  for (let i = 0; i < meshes.length; i++) {
+    const mesh = meshes[i]
+    const body = mesh.userData.body as JoltType.Body
+
+    if (!body) continue
+
+    mesh.position.copy(
       toThreeVec3(
         new Jolt.Vec3(
           body.GetPosition().GetX(),
@@ -142,28 +138,14 @@ export function render(deltaTime: number) {
         )
       )
     )
-    objThree.quaternion.copy(
-      toThreeQuat(body.GetRotation())
-    )
-    if (
-      body.GetBodyType &&
-      body.GetBodyType() == Jolt.EBodyType_SoftBody
-    ) {
-      if (objThree.userData.updateVertex) {
-        objThree.userData.updateVertex()
-      } else {
-        // objThree.geometry = createMeshForShape(
-        //   body.GetShape()
-        // )
-      }
-    }
+    mesh.quaternion.copy(toThreeQuat(body.GetRotation()))
   }
   controls.update(deltaTime)
   renderer.render(scene, camera)
 }
 
 // Create a Three.js mesh for a Jolt body
-export function getThreeObjectForBody(
+export function getThreeMeshForBody(
   body: JoltType.Body,
   color: number
 ): THREE.Mesh {
@@ -194,25 +176,62 @@ export function getThreeObjectForBody(
   return mesh
 }
 
+const colors: Record<string, number> = {
+  t_y: 0x0000ff,
+  w_p: 0xff0000,
+  l_r: 0x00ff00,
+}
+colors.swing = colors.t_y + colors.w_p
+
 // Add a Jolt body to the world scene and dynamicObjects
 export function addToThreeScene(
   body: JoltType.Body,
   color: number
 ) {
-  const mesh = getThreeObjectForBody(body, color)
+  const mesh = getThreeMeshForBody(body, color)
 
   mesh.userData.body = body
   scene.add(mesh)
-  dynamicObjects.push(mesh)
+  meshes.push(mesh)
 
   return mesh
 }
 
-export function visualizeJointLimits(
-  parentObj: THREE.Object3D,
-  jointBp: BakedJointBlueprint
-) {
+export function visualizePart(
+  part: Part,
+  parent?: PartViz
+): PartViz {
+  const {
+    bp: { color, joint: jointBp },
+    body,
+  } = part
+
+  const mesh = addToThreeScene(body, color)
+
+  mesh.traverse((obj: any) => {
+    if (obj.material) {
+      obj.material.transparent = true
+      obj.material.opacity = 0.3
+      obj.material.depthWrite = false
+    }
+  })
+
+  const partViz: PartViz = Object.assign(mesh, {
+    userData: {
+      parent,
+      part,
+      body,
+      torque: {},
+    },
+  })
+
+  if (!parent || !jointBp) return partViz
+
+  const parentObj = parent
+
   const { y, p, r } = jointBp.limits as YPSet & RSet
+
+  const vizRadius = part.vizRadius * 3
 
   // if y & p
   if (r == undefined) {
@@ -222,19 +241,18 @@ export function visualizeJointLimits(
 
     // Swing cone (elliptical, partial)
     const swingSegments = 8
-    const swingHeight = 0.3
     const swingVertices: number[] = []
     swingVertices.push(0, 0, 0) // cone tip at origin
     const segmentRad = (2 * Math.PI) / swingSegments
 
     const normalLimitX =
-      Math.sin(normalHalfConeRad) * swingHeight
+      Math.sin(normalHalfConeRad) * vizRadius
     const normalLimitY =
-      Math.cos(normalHalfConeRad) * swingHeight
+      Math.cos(normalHalfConeRad) * vizRadius
     const planeLimitX =
-      Math.sin(planeHalfConeRad) * swingHeight
+      Math.sin(planeHalfConeRad) * vizRadius
     const planeLimitY =
-      Math.cos(planeHalfConeRad) * swingHeight
+      Math.cos(planeHalfConeRad) * vizRadius
 
     for (let i = 0; i <= swingSegments; i++) {
       const theta = i * segmentRad
@@ -246,8 +264,8 @@ export function visualizeJointLimits(
 
       // Elliptical radii
       const x = planeLimitX * planeWeight
-      const y = normalLimitX * normalWeight
-      const z =
+      const z = normalLimitX * normalWeight
+      const y =
         (normalLimitY * absNormalWeight +
           planeLimitY * absPlaneWeight) /
         (absNormalWeight + absPlaneWeight)
@@ -269,7 +287,7 @@ export function visualizeJointLimits(
     swingGeometry.computeVertexNormals()
 
     const swingMaterial = new THREE.MeshBasicMaterial({
-      color: 0x00ff00,
+      color: colors.swing,
       wireframe: true,
       opacity: 0.5,
       transparent: true,
@@ -279,16 +297,32 @@ export function visualizeJointLimits(
       swingMaterial
     )
 
-    swingMesh.position.fromArray(jointBp.parentOffset)
+    swingMesh.position.copy(jointBp.parentOffset.baked)
     swingMesh.quaternion.copy(jointBp.rotation)
-
     parentObj.add(swingMesh)
+
+    //     // force
+    //     const dir = new THREE.Vector3(1, 2, 0)
+    //
+    //     //normalize the direction vector (convert to vector of length 1)
+    //     dir.normalize()
+    //
+    //     const origin = new THREE.Vector3(0, 0, 0)
+    //     const length = 0.1
+    //     const hex = 0xffff00
+    //
+    //     const arrowHelper = new THREE.ArrowHelper(
+    //       dir,
+    //       origin,
+    //       length,
+    //       hex
+    //     )
+    //     parentObj.add(arrowHelper)
   }
 
   // if r
   else {
     // Twist arc (partial ring)
-    const twistRadius = 0.22
     const twistSegments = 8
     const twistGeometry = new THREE.BufferGeometry()
     const twistVertices: number[] = []
@@ -300,8 +334,8 @@ export function visualizeJointLimits(
     for (let i = 0; i <= twistSegments; i++) {
       const angle =
         -twistRad + (i / twistSegments) * (twistRad * 2)
-      const x = Math.cos(angle) * twistRadius
-      const y = Math.sin(angle) * twistRadius
+      const x = Math.cos(angle) * vizRadius
+      const y = Math.sin(angle) * vizRadius
       const z = 0
       twistVertices.push(x, y, z)
     }
@@ -311,7 +345,7 @@ export function visualizeJointLimits(
       new THREE.Float32BufferAttribute(twistVertices, 3)
     )
     const twistMaterial = new THREE.LineBasicMaterial({
-      color: 0xff0000,
+      color: colors.l_r,
       opacity: 0.7,
       transparent: true,
     })
@@ -320,22 +354,18 @@ export function visualizeJointLimits(
       twistGeometry,
       twistMaterial
     )
-    twistArc.position.fromArray(jointBp.parentOffset)
+    twistArc.position.copy(jointBp.parentOffset.baked)
     twistArc.quaternion.copy(jointBp.rotation)
 
     parentObj.add(twistArc)
   }
 
-  //   // Optionally: add axes helper at joint
-  //   const axes = new THREE.AxesHelper(0.1)
-  //   axes.position.fromArray(jointBp.positionA)
-  //   axes.quaternion.copy(jointBp.rotation)
-  //
-  //   parentObj.add(axes)
-}
+  // Optionally: add axes helper at joint
+  const axes = new THREE.AxesHelper(0.1)
+  axes.position.copy(jointBp.parentOffset.baked)
+  axes.quaternion.copy(jointBp.rotation)
 
-export function updateJointTorquesViz(
-  parts: Record<string, Part>
-) {
-  //
+  parentObj.add(axes)
+
+  return partViz
 }
