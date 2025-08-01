@@ -47,22 +47,6 @@
 
 - [ ] use anchors
 
-- [ ] customize
-
-  - [ ] mass
-  - [ ] material
+- [ ] customize material
 
 - [ ] symmetry
-
-======
-
-| Joint Name  | Parent      | Twist Axis | Twist Angle | Normal Angle | Plane Angle | Notes               |
-| ----------- | ----------- | ---------- | ----------- | ------------ | ----------- | ------------------- |
-| LowerBody   | -1          | -          | -           | -            | -           | Root, no constraint |
-| MidBody     | LowerBody   | Y          | 5°          | 10°          | 10°         | Spine               |
-| UpperBody   | MidBody     | Y          | 5°          | 10°          | 10°         | Spine               |
-| Head        | UpperBody   | Y          | 90°         | 45°          | 45°         | Head                |
-| UpperArmL/R | UpperBody   | X          | 45°         | 90°          | 45°         | Shoulder            |
-| LowerArmL/R | UpperArmL/R | -X/X       | 45°         | 0°           | 90°         | Elbow               |
-| UpperLegL/R | LowerBody   | -Y/-Y      | 45°         | 45°          | 45°         | Hip                 |
-| LowerLegL/R | UpperLegL/R | -Y/-Y      | 45°         | 0°           | 60°         | Knee                |

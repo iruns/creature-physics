@@ -38,7 +38,7 @@ window.addEventListener('DOMContentLoaded', () => {
       // shape: PartShape.Cylinder,
       size: { l: 0.4, w: 0.06, t: 0.03, r: 0 },
       position: { x: 0, y: 0.5, z: 0 },
-      rotation: { y: 0, p: 0, r: 0 },
+      rotation: { y: 30, p: 0, r: 0 },
       children: [
         {
           name: 'lower-arm',
@@ -51,7 +51,7 @@ window.addEventListener('DOMContentLoaded', () => {
             // 1
             parentOffset: { l: 0.2 },
             childOffset: { l: -0.2 },
-            axis: { y: 0, p: 0, r: 0 },
+            axis: { y: 0, p: 30, r: 0 },
             limits: { y: 30, p: 60 },
             maxTorque: 5,
           },

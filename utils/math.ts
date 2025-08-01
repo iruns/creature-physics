@@ -1,6 +1,10 @@
 import * as THREE from 'three'
 import type JoltType from 'jolt-physics'
-import { Jolt } from './world'
+import {
+  axisConfigs,
+  jointAxisConfigs,
+  Jolt,
+} from './world'
 
 // Helper to convert degrees to radians
 export function degToRad(deg: number): number {
@@ -21,26 +25,34 @@ export function rotateByAxis(
 }
 
 export function quaternionFromYPR(
-  yaw = 0,
-  pitch = 0,
-  roll = 0
+  y = 0,
+  p = 0,
+  r = 0
 ): THREE.Quaternion {
   let quaternion = new THREE.Quaternion(0, 0, 0, 1)
 
+  const axes = new THREE.Vector3(0, 0, 0)
+  axes[jointAxisConfigs.y.rawAxis] = 1
   rotateByAxis(
     quaternion,
-    new THREE.Vector3(0, 1, 0),
-    degToRad(yaw)
+    new THREE.Vector3(...axes),
+    degToRad(y)
   )
+
+  axes.set(0, 0, 0)
+  axes[jointAxisConfigs.p.rawAxis] = 1
   rotateByAxis(
     quaternion,
-    new THREE.Vector3(1, 0, 0),
-    degToRad(pitch)
+    new THREE.Vector3(...axes),
+    degToRad(p)
   )
+
+  axes.set(0, 0, 0)
+  axes[jointAxisConfigs.r.rawAxis] = 1
   rotateByAxis(
     quaternion,
-    new THREE.Vector3(0, 0, 1),
-    degToRad(roll)
+    new THREE.Vector3(...axes),
+    degToRad(r)
   )
 
   return quaternion
