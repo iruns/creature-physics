@@ -36,17 +36,22 @@
 - [x] split part bp size and shape variables
 - [x] use bp size to set the viz size
 
-- [ ] visualize motor force
+- [x] use anchors
+
+- [x] visualize motor force
+
   - add at creation, based on limits
     - use arrow helpers from three?
   - show/hide and scale at update
+
+- [x] fix joint control forces
+- [x] customize material
+
+- [ ] fix joint limit viz
+
 - [ ] visualize other forces
 
   - idem
   - GetTotalLambdaRotation
-
-- [ ] use anchors
-
-- [ ] customize material
 
 - [ ] symmetry

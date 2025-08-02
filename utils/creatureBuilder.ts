@@ -5,7 +5,11 @@ import {
 } from './world'
 import JoltType from 'jolt-physics'
 import * as THREE from 'three'
-import { degToRad, quaternionFromYPR } from './math'
+import {
+  degToRad,
+  quaternionFromYPR,
+  toThreeVec3,
+} from './math'
 import {
   BakedPartBlueprint,
   PartBlueprint,
@@ -22,16 +26,13 @@ import {
 
 export const defaultPartBp: PartBlueprintDefaults = {
   color: 0x888888,
-  mass: 1,
+  density: 985,
   friction: 0.5,
   restitution: 0.1,
 }
 
 export const defaultJointBp: JointBlueprintDefaults = {
-  friction: 0.1,
-  // maxTorque: 0.0,
-  maxTorque: 0.5,
-  // maxTorque: 5,
+  maxTorque: 0.1,
   targetVelocity: 10,
 }
 
@@ -80,31 +81,44 @@ export function buildRagdollFromBlueprint(
       const { y, p, r } = partBp.rotation
       worldRotation.copy(quaternionFromYPR(y, p, r))
     } else {
-      const { joint } = partBp
+      const { joint, size } = partBp
+
       if (!joint)
         throw new Error('Non-root part must have a joint')
+
+      const { size: parentSize } = parentPartBp
 
       const bakedParentOffset = new THREE.Vector3()
       const bakedChildOffset = new THREE.Vector3()
 
+      const { parentOffset, childOffset } = joint
+
       // calculate baked offsets
       axisConfigs.forEach((config) => {
         const { rawAxis, partAxis } = config
+
         bakedParentOffset[rawAxis] =
-          joint.parentOffset[partAxis] ?? 0
+          (parentOffset[partAxis] ?? 0) +
+          (parentOffset.from?.[partAxis] ?? 0) *
+            0.5 *
+            (parentSize[partAxis] ?? 0)
+
         bakedChildOffset[rawAxis] =
-          joint.childOffset[partAxis] ?? 0
+          (childOffset[partAxis] ?? 0) +
+          (childOffset.from?.[partAxis] ?? 0) *
+            0.5 *
+            (size[partAxis] ?? 0)
       })
 
       const bakedJoint: BakedJointBlueprint = {
         ...defaultJointBp,
         ...joint,
         parentOffset: {
-          ...joint.parentOffset,
+          ...parentOffset,
           baked: bakedParentOffset,
         },
         childOffset: {
-          ...joint.childOffset,
+          ...childOffset,
           baked: bakedChildOffset,
         },
         rotation: new THREE.Quaternion(),
@@ -174,10 +188,11 @@ export function buildRagdollFromBlueprint(
 
     const { shape: shapeType, size } = partBp
 
-    let shape: JoltType.Shape
+    let shape: JoltType.ConvexShape
     const hY = size.l / 2
-    const hX = (size.w ?? 0 / 2) || hY
-    const hZ = (size.t ?? 0 / 2) || hX
+    const hX = (size.w ?? 0) / 2 || hY
+    const hZ = (size.t ?? 0) / 2 || hX
+
     const roundingR = Math.min(hX, hY, hZ, size.r ?? 0)
     switch (shapeType) {
       case PartShape.Sphere:
@@ -196,8 +211,17 @@ export function buildRagdollFromBlueprint(
         )
         break
     }
-    settingsPart.SetShape(shape)
 
+    // apply properties
+    shape.SetDensity(
+      partBp.density ?? defaultPartBp.density
+    )
+    settingsPart.mFriction =
+      partBp.friction ?? defaultPartBp.friction
+    settingsPart.mRestitution =
+      partBp.restitution ?? defaultPartBp.restitution
+
+    settingsPart.SetShape(shape)
     settingsPart.mRotation = new Jolt.Quat(
       ...partBp.worldRotation.toArray()
     )
@@ -284,6 +308,7 @@ export function buildRagdollFromBlueprint(
 
         // Set y & p limits
         jointSettings.mSwingType = JoltType.ESwingType_Cone
+
         jointSettings.SetLimitedAxis(
           jointAxisConfigs.p.joltAxis,
           0,
@@ -314,9 +339,6 @@ export function buildRagdollFromBlueprint(
           limitRad
         )
       }
-
-      jointSettings.mMaxFriction =
-        jointBp.friction ?? defaultJointBp.friction
     }
 
     settingsPart.mMotionType = Jolt.EMotionType_Dynamic
@@ -361,17 +383,16 @@ export function buildRagdollFromBlueprint(
       .TryGetBody(ragdoll.GetBodyID(idx))
     bodies[name] = body
 
-    body.GetMotionProperties().SetAngularDamping(0.5)
-    body.GetMotionProperties().GetAccumulatedForce
-
     const part: Part = {
       bp: partBp,
       body,
       vizRadius: 0,
       parent,
+      torqueDir: { y: 0, p: 0, r: 0 },
       torque: { y: 0, p: 0, r: 0 },
     }
 
+    // set radius to be used in visualizations
     switch (partBp.shape) {
       case PartShape.Sphere:
       case PartShape.Cylinder:
@@ -394,12 +415,12 @@ export function buildRagdollFromBlueprint(
       joints[name] = joint
 
       axisConfigs.forEach((config) => {
-        const { joltAxis } = config
-        // start motor turned off
-        joint.SetMotorState(joltAxis, Jolt.EMotorState_Off)
-        joint.SetMaxFriction(
+        const { joltAxis, jointAxis } = config
+        joint.SetMotorState(
           joltAxis,
-          jointBP.friction ?? defaultJointBp.friction
+          jointBP.limits[jointAxis]
+            ? Jolt.EMotorState_Velocity
+            : Jolt.EMotorState_Off
         )
       })
 

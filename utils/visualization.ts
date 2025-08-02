@@ -2,8 +2,22 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/Addons.js'
 import type JoltType from 'jolt-physics'
 import { Jolt } from './world'
-import { Part, RSet, PartViz, YPSet } from './types'
-import { degToRad, toThreeQuat, toThreeVec3 } from './math'
+import {
+  Part,
+  RSet,
+  PartViz,
+  YPSet,
+  PartAxis,
+  JointAxis,
+} from './types'
+import {
+  degToRad,
+  exponentiate,
+  jointToThreeAxis,
+  partToThreeAxis,
+  toThreeQuat,
+  toThreeVec3,
+} from './math'
 
 export let container: HTMLElement
 export let scene: THREE.Scene
@@ -139,6 +153,27 @@ export function render(deltaTime: number) {
       )
     )
     mesh.quaternion.copy(toThreeQuat(body.GetRotation()))
+
+    // if has joint, update the arrows
+    const partViz = mesh as PartViz
+    const { part, torque } = partViz.userData
+    if (!part) continue
+
+    const joint = part.joint
+    if (!joint) continue
+
+    for (const key in torque) {
+      const jointAxis = key as JointAxis
+      let scale = -exponentiate(part.torque[jointAxis], 0.5)
+      // flip torque direction for p axis (for some reason)
+      if (jointAxis === 'p') scale = -scale
+      const arrow = torque[jointAxis] as THREE.ArrowHelper
+      arrow.scale.set(scale, scale, scale)
+
+      // console.log(
+      //   joint.GetTotalLambdaMotorRotation().GetZ()
+      // )
+    }
   }
   controls.update(deltaTime)
   renderer.render(scene, camera)
@@ -176,11 +211,20 @@ export function getThreeMeshForBody(
   return mesh
 }
 
-const colors: Record<string, number> = {
+const colors = {
   t_y: 0x0000ff,
   w_p: 0xff0000,
   l_r: 0x00ff00,
-}
+} as any as Record<string, number> &
+  Record<PartAxis, number> &
+  Record<JointAxis, number>
+
+colors.t = colors.t_y
+colors.y = colors.t_y
+colors.w = colors.w_p
+colors.p = colors.w_p
+colors.l = colors.l_r
+colors.r = colors.l_r
 colors.swing = colors.t_y + colors.w_p
 
 // Add a Jolt body to the world scene and dynamicObjects
@@ -211,7 +255,7 @@ export function visualizePart(
   mesh.traverse((obj: any) => {
     if (obj.material) {
       obj.material.transparent = true
-      obj.material.opacity = 0.3
+      obj.material.opacity = 0.9
       obj.material.depthWrite = false
     }
   })
@@ -224,14 +268,23 @@ export function visualizePart(
       torque: {},
     },
   })
+  const { userData } = partViz
+
+  // Optionally: add axes helper at joint
+  const axes = new THREE.AxesHelper(0.1)
+
+  partViz.add(axes)
 
   if (!parent || !jointBp) return partViz
 
-  const parentObj = parent
+  axes.position.copy(jointBp.childOffset.baked)
+  axes.quaternion.copy(jointBp.rotation)
+
+  const parentViz = parent
 
   const { y, p, r } = jointBp.limits as YPSet & RSet
 
-  const vizRadius = part.vizRadius * 3
+  const limitRadius = part.vizRadius * 3
 
   // if y & p
   if (r == undefined) {
@@ -240,19 +293,19 @@ export function visualizePart(
     const planeHalfConeRad = degToRad(y)
 
     // Swing cone (elliptical, partial)
-    const swingSegments = 8
+    const swingSegments = 16
     const swingVertices: number[] = []
     swingVertices.push(0, 0, 0) // cone tip at origin
     const segmentRad = (2 * Math.PI) / swingSegments
 
     const normalLimitX =
-      Math.sin(normalHalfConeRad) * vizRadius
+      Math.sin(normalHalfConeRad) * limitRadius
     const normalLimitY =
-      Math.cos(normalHalfConeRad) * vizRadius
+      Math.cos(normalHalfConeRad) * limitRadius
     const planeLimitX =
-      Math.sin(planeHalfConeRad) * vizRadius
+      Math.sin(planeHalfConeRad) * limitRadius
     const planeLimitY =
-      Math.cos(planeHalfConeRad) * vizRadius
+      Math.cos(planeHalfConeRad) * limitRadius
 
     for (let i = 0; i <= swingSegments; i++) {
       const theta = i * segmentRad
@@ -287,7 +340,7 @@ export function visualizePart(
     swingGeometry.computeVertexNormals()
 
     const swingMaterial = new THREE.MeshBasicMaterial({
-      color: colors.swing,
+      color: !y ? colors.p : !p ? colors.y : colors.swing,
       wireframe: true,
       opacity: 0.5,
       transparent: true,
@@ -299,25 +352,7 @@ export function visualizePart(
 
     swingMesh.position.copy(jointBp.parentOffset.baked)
     swingMesh.quaternion.copy(jointBp.rotation)
-    parentObj.add(swingMesh)
-
-    //     // force
-    //     const dir = new THREE.Vector3(1, 2, 0)
-    //
-    //     //normalize the direction vector (convert to vector of length 1)
-    //     dir.normalize()
-    //
-    //     const origin = new THREE.Vector3(0, 0, 0)
-    //     const length = 0.1
-    //     const hex = 0xffff00
-    //
-    //     const arrowHelper = new THREE.ArrowHelper(
-    //       dir,
-    //       origin,
-    //       length,
-    //       hex
-    //     )
-    //     parentObj.add(arrowHelper)
+    parentViz.add(swingMesh)
   }
 
   // if r
@@ -334,9 +369,9 @@ export function visualizePart(
     for (let i = 0; i <= twistSegments; i++) {
       const angle =
         -twistRad + (i / twistSegments) * (twistRad * 2)
-      const x = Math.cos(angle) * vizRadius
-      const y = Math.sin(angle) * vizRadius
-      const z = 0
+      const x = Math.cos(angle) * limitRadius
+      const y = 0
+      const z = Math.sin(angle) * limitRadius
       twistVertices.push(x, y, z)
     }
     twistVertices.push(0, 0, 0)
@@ -344,8 +379,9 @@ export function visualizePart(
       'position',
       new THREE.Float32BufferAttribute(twistVertices, 3)
     )
+
     const twistMaterial = new THREE.LineBasicMaterial({
-      color: colors.l_r,
+      color: colors.r,
       opacity: 0.7,
       transparent: true,
     })
@@ -357,15 +393,35 @@ export function visualizePart(
     twistArc.position.copy(jointBp.parentOffset.baked)
     twistArc.quaternion.copy(jointBp.rotation)
 
-    parentObj.add(twistArc)
+    parentViz.add(twistArc)
   }
 
-  // Optionally: add axes helper at joint
-  const axes = new THREE.AxesHelper(0.1)
-  axes.position.copy(jointBp.parentOffset.baked)
-  axes.quaternion.copy(jointBp.rotation)
+  // forces
+  const forceSize = part.vizRadius * 2
+  for (const key in jointBp.limits) {
+    const axis = key as JointAxis
+    const limit = jointBp.limits[axis]
+    if (limit) {
+      const direction = partToThreeAxis(
+        axis === 'y' ? 'w' : axis === 'p' ? 't' : 't'
+      )
+      const origin = partToThreeAxis(
+        axis === 'y' ? 'l' : axis === 'p' ? 'l' : 'w',
+        limitRadius * 0.4
+      ).add(jointBp.childOffset.baked)
+      const arrow = (userData.torque[axis] =
+        new THREE.ArrowHelper(
+          direction,
+          origin,
+          forceSize,
+          colors[axis]
+        ))
 
-  parentObj.add(axes)
+      partViz.add(arrow)
+    }
+  }
+
+  // console.log(joint.GetTotalLambdaMotorRotation().GetZ())
 
   return partViz
 }

@@ -1,5 +1,12 @@
+import { radToDeg } from 'three/src/math/MathUtils.js'
 import { defaultJointBp } from './creatureBuilder'
-import { degToRad, scale, toThreeQuat } from './math'
+import {
+  degToRad,
+  lerp,
+  scale,
+  toThreeQuat,
+  toThreeVec3,
+} from './math'
 import { Part, RSet, YPSet } from './types'
 import { Jolt, axisConfigs, rawAxisConfigs } from './world'
 import * as THREE from 'three'
@@ -56,7 +63,7 @@ export function createJointControls(
       axisDiv.style.gap = '8px'
       axisDiv.style.width = '100%'
 
-      const torque = part.torque
+      const torque = part.torqueDir
 
       // Left button
       const leftButton = axisDiv.appendChild(
@@ -98,13 +105,14 @@ export function updateJointTorques(
   parts: Record<string, Part>
 ) {
   for (const name in parts) {
-    const { joint, torque, bp, body, parent } = parts[name]
+    const { joint, torqueDir, torque, bp, body, parent } =
+      parts[name]
     if (!joint) continue
 
     const jointBP = bp.joint!
     const maxTorque =
       jointBP.maxTorque ?? defaultJointBp.maxTorque
-    const minTorque = jointBP.minTorque ?? maxTorque
+    const minTorque = jointBP.minTorque ?? -maxTorque
     let targetVelocity =
       jointBP.targetVelocity ??
       defaultJointBp.targetVelocity
@@ -149,54 +157,58 @@ export function updateJointTorques(
       const limit = limits[jointAxis] ?? 0
       if (!limit) continue
 
-      const axisTorque = torque[jointAxis]
+      const axisDir = torqueDir[jointAxis]
       const settings = joint.GetMotorSettings(joltAxis)
 
-      settings.set_mMaxTorqueLimit(0)
-      settings.set_mMinTorqueLimit(0)
+      const torqueFloor = 0.5
+      const maxTorqueFloor = maxTorque * torqueFloor
+      settings.set_mMaxTorqueLimit(maxTorqueFloor)
+      const minTorqueFloor = minTorque * torqueFloor
+      settings.set_mMinTorqueLimit(minTorqueFloor)
 
       // get scaled angle to limits,
       // with 0 for at the center, -1 at one limit and 1 at the other
       const scaledAngle = euler[rawAxis] / degToRad(limit)
 
-      let centeringTorque = 0
+      let centeringScale = 0
       if (scaledAngle) {
-        centeringTorque = scale(
+        centeringScale = scale(
           0,
           1,
-          0.4,
+          0.66,
           1,
           Math.abs(scaledAngle),
           true
         )
-        centeringTorque = Math.max(0, centeringTorque)
+        centeringScale = Math.max(0, centeringScale)
 
-        centeringTorque **= 3
-        centeringTorque *= maxTorque * 0.1
+        centeringScale **= 3
+        centeringScale *= 0.1
 
         if (scaledAngle < 0)
-          centeringTorque = -centeringTorque
+          centeringScale = -centeringScale
       }
 
-      // const sumTorque = axisTorque
-      const sumTorque = axisTorque - centeringTorque
+      // const sumScale = axisDir
+      const sumScale = axisDir - centeringScale
+      torque[jointAxis] = sumScale
 
-      let motorState = Jolt.EMotorState_Velocity
       let targetVelocityA = targetVelocity
-      if (!axisTorque) targetVelocityA *= 0.01
 
-      if (sumTorque > 0) {
-        settings.set_mMaxTorqueLimit(sumTorque * maxTorque)
-      } else if (sumTorque < 0) {
-        settings.set_mMinTorqueLimit(sumTorque * minTorque)
+      if (sumScale > 0) {
+        settings.set_mMaxTorqueLimit(
+          lerp(maxTorqueFloor, maxTorque, sumScale)
+        )
+      } else if (sumScale < 0) {
+        settings.set_mMinTorqueLimit(
+          lerp(minTorqueFloor, minTorque, sumScale)
+        )
         targetVelocityA = -targetVelocityA
       } else {
         targetVelocityA = 0
-        motorState = Jolt.EMotorState_Off
       }
 
       velocityArray[torqueIdx] = targetVelocityA
-      joint.SetMotorState(joltAxis, motorState)
     }
 
     const velocityVec3 = new Jolt.Vec3(...velocityArray)

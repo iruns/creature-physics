@@ -4,7 +4,9 @@ import {
   axisConfigs,
   jointAxisConfigs,
   Jolt,
+  partAxisConfigs,
 } from './world'
+import { JointAxis, PartAxis } from './types'
 
 // Helper to convert degrees to radians
 export function degToRad(deg: number): number {
@@ -31,31 +33,41 @@ export function quaternionFromYPR(
 ): THREE.Quaternion {
   let quaternion = new THREE.Quaternion(0, 0, 0, 1)
 
-  const axes = new THREE.Vector3(0, 0, 0)
-  axes[jointAxisConfigs.y.rawAxis] = 1
   rotateByAxis(
     quaternion,
-    new THREE.Vector3(...axes),
+    jointToThreeAxis('y'),
     degToRad(y)
   )
-
-  axes.set(0, 0, 0)
-  axes[jointAxisConfigs.p.rawAxis] = 1
   rotateByAxis(
     quaternion,
-    new THREE.Vector3(...axes),
+    jointToThreeAxis('p'),
     degToRad(p)
   )
-
-  axes.set(0, 0, 0)
-  axes[jointAxisConfigs.r.rawAxis] = 1
   rotateByAxis(
     quaternion,
-    new THREE.Vector3(...axes),
+    jointToThreeAxis('r'),
     degToRad(r)
   )
 
   return quaternion
+}
+
+export const partToThreeAxis = (
+  axis: PartAxis,
+  value = 1
+) => {
+  const result = new THREE.Vector3(0, 0, 0)
+  result[partAxisConfigs[axis].rawAxis] = value
+  return result
+}
+
+export const jointToThreeAxis = (
+  axis: JointAxis,
+  value = 1
+) => {
+  const result = new THREE.Vector3(0, 0, 0)
+  result[jointAxisConfigs[axis].rawAxis] = value
+  return result
 }
 
 export const toThreeVec3 = (

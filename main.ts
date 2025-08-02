@@ -1,5 +1,10 @@
 import initJolt from 'jolt-physics'
-import { Part, PartBlueprint, PartViz } from './utils/types'
+import {
+  Part,
+  PartBlueprint,
+  PartShape,
+  PartViz,
+} from './utils/types'
 import { buildRagdollFromBlueprint } from './utils/creatureBuilder'
 import {
   addToThreeScene,
@@ -27,68 +32,47 @@ window.addEventListener('DOMContentLoaded', () => {
     const floorBody = createFloor()
     addToThreeScene(floorBody, 0x888888)
 
-    Jolt.BoxShape
-    Jolt.CapsuleShape
-    Jolt.CylinderShape
-    Jolt.SphereShape
-
     // Blueprint for minimal skeleton: upper arm and lower arm
     const blueprint: PartBlueprint = {
       name: 'upper-arm',
-      // shape: PartShape.Cylinder,
-      size: { l: 0.4, w: 0.06, t: 0.03, r: 0 },
+      size: { l: 0.1, w: 0.05, t: 0.04, r: 0 },
       position: { x: 0, y: 0.5, z: 0 },
-      rotation: { y: 30, p: 0, r: 0 },
+      rotation: { y: 0, p: -90, r: 0 },
       children: [
         {
           name: 'lower-arm',
-          // shape: PartShape.Capsule,
-          // shape: PartShape.Cylinder,
-          size: { l: 0.4, w: 0.04, t: 0.02, r: 0 },
-          // shape: PartShape.Box,
-          // size: { l: 0.4, w: 0.04, r: 0.02 },
+          size: { l: 0.1, w: 0.04, t: 0.03, r: 0 },
           joint: {
-            // 1
-            parentOffset: { l: 0.2 },
-            childOffset: { l: -0.2 },
-            axis: { y: 0, p: 30, r: 0 },
-            limits: { y: 30, p: 60 },
-            maxTorque: 5,
+            parentOffset: { from: { l: 1 } },
+            childOffset: { from: { l: -1 } },
+            axis: { y: 0, p: 0, r: 0 },
+            limits: { y: 0, p: 45 },
+            // maxTorque: 5,
           },
           // children: [
           //   {
           //     name: 'lower-arm-end',
-          //     // shape: new Jolt.CapsuleShape(0.15, 0.05),
-          //     // shape: new Jolt.BoxShape(
-          //     //   new Jolt.Vec3(0.02, 0.02, 0.1)
-          //     // ),
-          //     size: { l: 0.2, w: 0.04, r: 0 },
+          //     size: { l: 0.2, w: 0.04, t: 0.02, r: 0 },
           //     joint: {
-          //       // 1
-          //       parentOffset: [0, 0, 0.2],
-          //       childOffset: [0, 0, -0.1],
+          //       parentOffset: { from: { l: 1 } },
+          //       childOffset: { from: { l: -1 } },
           //       axis: { y: 0, p: 0, r: 0 },
           //       limits: { r: 60 },
           //       maxTorque: 0.1,
           //     },
-          //     children: [
-          //       {
-          //         name: 'hand',
-          //         // shape: new Jolt.CapsuleShape(0.15, 0.05),
-          //         // shape: new Jolt.BoxShape(
-          //         //   new Jolt.Vec3(0.03, 0.02, 0.04)
-          //         // ),
-          //         size: { l: 0.08, w: 0.04, t: 0.03, r: 0 },
-          //         joint: {
-          //           // 1
-          //           parentOffset: [0, 0, 0.1],
-          //           childOffset: [0, 0, -0.04],
-          //           axis: { y: 0, p: 0, r: 0 },
-          //           limits: { y: 0, p: 60 },
-          //           maxTorque: 0.05,
-          //         },
-          //       },
-          //     ],
+          //     // children: [
+          //     //   {
+          //     //     name: 'hand',
+          //     //     size: { l: 0.08, w: 0.04, t: 0.03, r: 0 },
+          //     //     joint: {
+          //     //       parentOffset: { from: { l: 1 } },
+          //     //       childOffset: { from: { l: -1 } },
+          //     //       axis: { y: 0, p: 0, r: 0 },
+          //     //       limits: { y: 0, p: 60 },
+          //     //       maxTorque: 0.05,
+          //     //     },
+          //     //   },
+          //     // ],
           //   },
           // ],
         },

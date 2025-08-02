@@ -4,6 +4,7 @@ import * as THREE from 'three'
 export type RawAxis = 'x' | 'y' | 'z'
 export type PartAxis = 'l' | 'w' | 't'
 export type JointAxis = 'y' | 'p' | 'r'
+export type AnchorValue = -1 | 0 | 1
 
 export type AxisConfig = {
   torqueIdx: number
@@ -59,26 +60,29 @@ export enum PartShape {
 
 export interface PartBlueprintDefaults {
   color: number
-  mass: number
+  density: number
   friction: number
   restitution: number
 }
 
 export type JointBlueprint = {
+  /** Anchor in parent local space, with optional "at" as the origin */
   parentOffset: Partial<PartAxisVec3> & {
-    anchor?: Partial<PartAxisVec3>
-  } // Anchor in parent local space
+    from?: Partial<PartAxisVec3<AnchorValue>>
+  }
+  /** Anchor in child local space, with optional "at" as the origin */
   childOffset: Partial<PartAxisVec3> & {
-    anchor?: Partial<PartAxisVec3>
-  } // Anchor in child local space
+    from?: Partial<PartAxisVec3<AnchorValue>>
+  }
   axis: YPSet & RSet // Yaw, pitch, roll axes in parent local space
   limits: YPSet | RSet // Yaw and pitch OR roll limits in degrees
 } & Partial<JointBlueprintDefaults>
 
 export interface JointBlueprintDefaults {
-  friction: number
-  maxTorque: number // max force for motors
-  minTorque?: number // min force for motors, if not set, will be maxForce
+  /** max force for motors */
+  maxTorque: number
+  /** min force for motors, if not set, will be -maxForce */
+  minTorque?: number
   // TODO torques should be per axis
   targetVelocity: number
 }
@@ -124,6 +128,7 @@ export interface Part {
   // Only for non-root parts
   parent?: Part
   joint?: JoltType.SixDOFConstraint
+  torqueDir: JointAxisVec3
   torque: JointAxisVec3
 }
 
@@ -143,7 +148,7 @@ export interface PartViz extends THREE.Mesh {
     children?: Record<string, PartViz>
     body: JoltType.Body
     part: Part
-    torque: Partial<JointAxisVec3<THREE.Mesh>>
-    // lambda: Partial<JointAxisVec3<THREE.Mesh>>
+    torque: Partial<JointAxisVec3<THREE.ArrowHelper>>
+    // lambda: Partial<JointAxisVec3<THREE.ArrowHelper>>
   }
 }
