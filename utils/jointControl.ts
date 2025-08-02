@@ -187,6 +187,7 @@ export function updateJointTorques(
 
         if (scaledAngle < 0)
           centeringScale = -centeringScale
+        centeringScale = 0
       }
 
       // const sumScale = axisDir

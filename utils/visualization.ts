@@ -18,6 +18,7 @@ import {
   toThreeQuat,
   toThreeVec3,
 } from './math'
+import { radToDeg } from 'three/src/math/MathUtils.js'
 
 export let container: HTMLElement
 export let scene: THREE.Scene
@@ -286,43 +287,65 @@ export function visualizePart(
 
   const limitRadius = part.vizRadius * 3
 
-  // if y & p
+  // if y and/or p
   if (r == undefined) {
     // Convert all angles from degrees to radians for geometry
-    const normalHalfConeRad = degToRad(p)
-    const planeHalfConeRad = degToRad(y)
+    const pHalfConeRad = degToRad(p)
+    const yHalfConeRad = degToRad(y)
 
-    // Swing cone (elliptical, partial)
-    const swingSegments = 16
+    let color = colors.swing
+    const swingSegments = 8
     const swingVertices: number[] = []
-    swingVertices.push(0, 0, 0) // cone tip at origin
-    const segmentRad = (2 * Math.PI) / swingSegments
+    swingVertices.push(0, 0, 0) // cone / semi-circle tip at origin
+    let segmentRad = 0
 
-    const normalLimitX =
-      Math.sin(normalHalfConeRad) * limitRadius
-    const normalLimitY =
-      Math.cos(normalHalfConeRad) * limitRadius
-    const planeLimitX =
-      Math.sin(planeHalfConeRad) * limitRadius
-    const planeLimitY =
-      Math.cos(planeHalfConeRad) * limitRadius
+    // Elliptical cone
+    if (y && p) {
+      segmentRad = (2 * Math.PI) / swingSegments
 
-    for (let i = 0; i <= swingSegments; i++) {
-      const theta = i * segmentRad
+      const pLimitX = Math.sin(pHalfConeRad) * limitRadius
+      const pLimitY = Math.cos(pHalfConeRad) * limitRadius
+      const yLimitX = Math.sin(yHalfConeRad) * limitRadius
+      const yLimitY = Math.cos(yHalfConeRad) * limitRadius
 
-      const normalWeight = Math.cos(theta)
-      const planeWeight = Math.sin(theta)
-      const absNormalWeight = Math.abs(normalWeight)
-      const absPlaneWeight = Math.abs(planeWeight)
+      for (let i = 0; i <= swingSegments; i++) {
+        const theta = i * segmentRad
 
-      // Elliptical radii
-      const x = planeLimitX * planeWeight
-      const z = normalLimitX * normalWeight
-      const y =
-        (normalLimitY * absNormalWeight +
-          planeLimitY * absPlaneWeight) /
-        (absNormalWeight + absPlaneWeight)
-      swingVertices.push(x, y, z)
+        const pWeight = Math.cos(theta)
+        const yWeight = Math.sin(theta)
+        const absPWeight = Math.abs(pWeight)
+        const absYWeight = Math.abs(yWeight)
+
+        const x = yLimitX * yWeight
+        const z = pLimitX * pWeight
+        const y =
+          (pLimitY * absPWeight + yLimitY * absYWeight) /
+          (absPWeight + absYWeight)
+        swingVertices.push(x, y, z)
+      }
+    } else {
+      let halfConeRad = yHalfConeRad
+      color = colors.y
+      if (p) {
+        halfConeRad = pHalfConeRad
+        color = colors.p
+      }
+
+      const angle0 = degToRad(90) - halfConeRad
+      segmentRad = (halfConeRad * 2) / swingSegments
+
+      for (let i = 0; i <= swingSegments; i++) {
+        const theta = angle0 + i * segmentRad
+
+        const pWeight = Math.cos(theta)
+        const yWeight = Math.sin(theta)
+
+        // Elliptical radii
+        const x = limitRadius * pWeight
+        const y = limitRadius * yWeight
+        if (p) swingVertices.push(0, y, x)
+        else swingVertices.push(x, y, 0)
+      }
     }
 
     // Indices for triangle fan
@@ -340,7 +363,7 @@ export function visualizePart(
     swingGeometry.computeVertexNormals()
 
     const swingMaterial = new THREE.MeshBasicMaterial({
-      color: !y ? colors.p : !p ? colors.y : colors.swing,
+      color,
       wireframe: true,
       opacity: 0.5,
       transparent: true,

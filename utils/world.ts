@@ -92,7 +92,7 @@ export function initWorld(JoltArg: typeof JoltType) {
   physicsSystem = jolt.GetPhysicsSystem()
   bodyInterface = physicsSystem.GetBodyInterface()
 
-  // physicsSystem.SetGravity(new Jolt.Vec3(0, 0, 0))
+  physicsSystem.SetGravity(new Jolt.Vec3(0, 0, 0))
 
   const physicsSettings = physicsSystem.GetPhysicsSettings()
   physicsSettings.mAllowSleeping = false

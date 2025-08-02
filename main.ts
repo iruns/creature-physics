@@ -46,7 +46,8 @@ window.addEventListener('DOMContentLoaded', () => {
             parentOffset: { from: { l: 1 } },
             childOffset: { from: { l: -1 } },
             axis: { y: 0, p: 0, r: 0 },
-            limits: { y: 0, p: 45 },
+            limits: { y: 90, p: 50 },
+            // limits: { y: 0, p: 110 },
             // maxTorque: 5,
           },
           // children: [

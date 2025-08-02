@@ -47,7 +47,7 @@
 - [x] fix joint control forces
 - [x] customize material
 
-- [ ] fix joint limit viz
+- [x] fix joint limit viz
 
 - [ ] visualize other forces
 
