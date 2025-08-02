@@ -34,47 +34,61 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Blueprint for minimal skeleton: upper arm and lower arm
     const blueprint: PartBlueprint = {
-      name: 'upper-arm',
-      size: { l: 0.1, w: 0.05, t: 0.04, r: 0 },
+      name: 'chest',
+      size: { l: 0.18, w: 0.25, t: 0.06, r: 0 },
       position: { x: 0, y: 0.5, z: 0 },
-      rotation: { y: 0, p: -90, r: 0 },
+      rotation: { y: 0, p: 0, r: 0 },
       children: [
         {
-          name: 'lower-arm',
-          size: { l: 0.1, w: 0.04, t: 0.03, r: 0 },
+          name: 'upper-arm',
+          size: { l: 0.22, w: 0.05, t: 0.04, r: 0 },
           joint: {
-            parentOffset: { from: { l: 1 } },
+            parentOffset: {
+              l: -0.03,
+              from: { w: 1, l: 1 },
+            },
             childOffset: { from: { l: -1 } },
-            axis: { y: 0, p: 0, r: 0 },
-            limits: { y: 90, p: 40, r: 40 },
-            // maxTorque: 5,
+            axis: { y: -90, p: 0, r: 0 },
+            limits: { y: 10, p: 10, r: 30 },
           },
-          // children: [
-          //   {
-          //     name: 'lower-arm-end',
-          //     size: { l: 0.2, w: 0.04, t: 0.02, r: 0 },
-          //     joint: {
-          //       parentOffset: { from: { l: 1 } },
-          //       childOffset: { from: { l: -1 } },
-          //       axis: { y: 0, p: 0, r: 0 },
-          //       limits: { r: 60 },
-          //       maxTorque: 0.1,
-          //     },
-          //     // children: [
-          //     //   {
-          //     //     name: 'hand',
-          //     //     size: { l: 0.08, w: 0.04, t: 0.03, r: 0 },
-          //     //     joint: {
-          //     //       parentOffset: { from: { l: 1 } },
-          //     //       childOffset: { from: { l: -1 } },
-          //     //       axis: { y: 0, p: 0, r: 0 },
-          //     //       limits: { y: 0, p: 60 },
-          //     //       maxTorque: 0.05,
-          //     //     },
-          //     //   },
-          //     // ],
-          //   },
-          // ],
+          children: [
+            {
+              name: 'lower-arm',
+              size: { l: 0.22, w: 0.04, t: 0.03, r: 0 },
+              joint: {
+                parentOffset: { from: { l: 1 } },
+                childOffset: { from: { l: -1 } },
+                axis: { y: 0, p: 0, r: 0 },
+                limits: { y: 10, p: 10, r: 30 },
+              },
+              // children: [
+              //   {
+              //     name: 'lower-arm-end',
+              //     size: { l: 0.2, w: 0.04, t: 0.02, r: 0 },
+              //     joint: {
+              //       parentOffset: { from: { l: 1 } },
+              //       childOffset: { from: { l: -1 } },
+              //       axis: { y: 0, p: 0, r: 0 },
+              //       limits: { r: 60 },
+              //       maxTorque: 0.1,
+              //     },
+              //     // children: [
+              //     //   {
+              //     //     name: 'hand',
+              //     //     size: { l: 0.08, w: 0.04, t: 0.03, r: 0 },
+              //     //     joint: {
+              //     //       parentOffset: { from: { l: 1 } },
+              //     //       childOffset: { from: { l: -1 } },
+              //     //       axis: { y: 0, p: 0, r: 0 },
+              //     //       limits: { y: 0, p: 60 },
+              //     //       maxTorque: 0.05,
+              //     //     },
+              //     //   },
+              //     // ],
+              //   },
+              // ],
+            },
+          ],
         },
       ],
     }
@@ -125,11 +139,11 @@ window.addEventListener('DOMContentLoaded', () => {
       updatePhysics(timeStep)
       render(timeStep)
 
-      if (!off && !bodies['lower-arm'].IsActive()) {
-        off = true
-        console.log(t)
-      }
-      t++
+      // if (!off && !bodies['lower-arm'].IsActive()) {
+      //   off = true
+      //   console.log(t)
+      // }
+      // t++
     }, timeStep * 1000)
   })
 })

@@ -126,9 +126,11 @@ export interface Part {
   children?: Record<string, Part>
   // Only for non-root parts
   parent?: Part
+
   joint?: JoltType.SixDOFConstraint
   torqueDir: JointAxisVec3
   torque: JointAxisVec3
+  lambda: JointAxisVec3
 }
 
 export type RootPart = Omit<Part, 'parent' | 'joint'>
@@ -148,6 +150,6 @@ export interface PartViz extends THREE.Mesh {
     body: JoltType.Body
     part: Part
     torque: Partial<JointAxisVec3<THREE.ArrowHelper>>
-    // lambda: Partial<JointAxisVec3<THREE.ArrowHelper>>
+    lambda: Partial<JointAxisVec3<THREE.ArrowHelper>>
   }
 }

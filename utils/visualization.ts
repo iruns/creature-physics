@@ -10,7 +10,6 @@ import {
   toThreeQuat,
   toThreeVec3,
 } from './math'
-import { radToDeg } from 'three/src/math/MathUtils.js'
 
 export let container: HTMLElement
 export let scene: THREE.Scene
@@ -149,7 +148,7 @@ export function render(deltaTime: number) {
 
     // if has joint, update the arrows
     const partViz = mesh as PartViz
-    const { part, torque } = partViz.userData
+    const { part, torque, lambda } = partViz.userData
     if (!part) continue
 
     const joint = part.joint
@@ -157,15 +156,38 @@ export function render(deltaTime: number) {
 
     for (const key in torque) {
       const jointAxis = key as JointAxis
-      let scale = -exponentiate(part.torque[jointAxis], 0.5)
-      // flip torque direction for p axis (for some reason)
-      if (jointAxis === 'p') scale = -scale
-      const arrow = torque[jointAxis] as THREE.ArrowHelper
-      arrow.scale.set(scale, scale, scale)
+      let forceScale = -exponentiate(
+        part.torque[jointAxis],
+        0.3
+      )
+      let lambdaScale = -exponentiate(
+        part.lambda[jointAxis],
+        0.3
+      )
 
-      // console.log(
-      //   joint.GetTotalLambdaMotorRotation().GetZ()
-      // )
+      // flip direction for p axis (for some reason)
+      if (jointAxis === 'p') {
+        forceScale = -forceScale
+        lambdaScale = -lambdaScale
+      }
+
+      const torqueArrow = torque[
+        jointAxis
+      ] as THREE.ArrowHelper
+      torqueArrow.scale.set(
+        forceScale,
+        forceScale,
+        forceScale
+      )
+
+      const lambdaArrow = lambda[
+        jointAxis
+      ] as THREE.ArrowHelper
+      lambdaArrow.scale.set(
+        lambdaScale,
+        lambdaScale,
+        lambdaScale
+      )
     }
   }
   controls.update(deltaTime)
@@ -248,7 +270,7 @@ export function visualizePart(
   mesh.traverse((obj: any) => {
     if (obj.material) {
       obj.material.transparent = true
-      obj.material.opacity = 0.9
+      obj.material.opacity = 0.3
       obj.material.depthWrite = false
     }
   })
@@ -259,12 +281,13 @@ export function visualizePart(
       part,
       body,
       torque: {},
+      lambda: {},
     },
   })
   const { userData } = partViz
 
   // Optionally: add axes helper at joint
-  const axes = new THREE.AxesHelper(0.1)
+  const axes = new THREE.AxesHelper(0.051)
 
   partViz.add(axes)
 
@@ -277,7 +300,7 @@ export function visualizePart(
 
   const { y, p, r } = jointBp.limits
 
-  const limitRadius = part.vizRadius * 3
+  const limitRadius = part.vizRadius * 1.5
 
   // if y and/or p
   if (y || p) {
@@ -411,7 +434,7 @@ export function visualizePart(
     parentViz.add(twistArc)
   }
 
-  // forces
+  // forces & lambda
   const forceSize = part.vizRadius * 2
   for (const key in jointBp.limits) {
     const axis = key as JointAxis
@@ -420,23 +443,36 @@ export function visualizePart(
       const direction = partToThreeAxis(
         axis === 'y' ? 'w' : axis === 'p' ? 't' : 't'
       )
-      const origin = partToThreeAxis(
+      const forceOrigin = partToThreeAxis(
         axis === 'y' ? 'l' : axis === 'p' ? 'l' : 'w',
         limitRadius * 0.4
       ).add(jointBp.childOffset.baked)
-      const arrow = (userData.torque[axis] =
+
+      const forceArrow = (userData.torque[axis] =
         new THREE.ArrowHelper(
           direction,
-          origin,
+          forceOrigin,
           forceSize,
           colors[axis]
         ))
 
-      partViz.add(arrow)
+      partViz.add(forceArrow)
+
+      const lambdaOrigin = partToThreeAxis(
+        axis === 'y' ? 'l' : axis === 'p' ? 'l' : 'w',
+        limitRadius * 0.2
+      ).add(jointBp.childOffset.baked)
+      const lambdaArrow = (userData.lambda[axis] =
+        new THREE.ArrowHelper(
+          direction,
+          lambdaOrigin,
+          forceSize,
+          colors[axis]
+        ))
+
+      partViz.add(lambdaArrow)
     }
   }
-
-  // console.log(joint.GetTotalLambdaMotorRotation().GetZ())
 
   return partViz
 }

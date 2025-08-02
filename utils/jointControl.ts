@@ -97,8 +97,15 @@ export function updateJointTorques(
   parts: Record<string, Part>
 ) {
   for (const name in parts) {
-    const { joint, torqueDir, torque, bp, body, parent } =
-      parts[name]
+    const {
+      joint,
+      torqueDir,
+      torque,
+      lambda,
+      bp,
+      body,
+      parent,
+    } = parts[name]
 
     if (!joint) continue
 
@@ -107,6 +114,7 @@ export function updateJointTorques(
       maxTorque,
       minTorque = -maxTorque,
       torqueFloor,
+
       targetVelocity,
 
       centerringFraction,
@@ -129,6 +137,7 @@ export function updateJointTorques(
     const jointRefQuat = jointRefLocal.multiply(qParent)
 
     // Relative rotation: q_rel = q_jointRef^-1 * q_child
+    // TODO try using joint.GetRotationInConstraintSpace
     const qRel = jointRefQuat
       .clone()
       .invert()
@@ -147,6 +156,13 @@ export function updateJointTorques(
       0, 0, 0,
     ]
 
+    const lambdaValues = joint.GetTotalLambdaMotorRotation()
+    lambda.y = -lambdaValues.GetY()
+    lambda.p = -lambdaValues.GetZ()
+    lambda.r = -lambdaValues.GetX()
+
+    Jolt.destroy(lambdaValues)
+
     for (let a = 0; a < axisConfigs.length; a++) {
       const { jointAxis, rawAxis, joltAxis, torqueIdx } =
         axisConfigs[a]
@@ -155,6 +171,7 @@ export function updateJointTorques(
       if (!limit) continue
 
       const axisDir = torqueDir[jointAxis]
+
       const settings = joint.GetMotorSettings(joltAxis)
 
       const maxTorqueFloor = maxTorque * torqueFloor

@@ -49,9 +49,10 @@
 
 - [x] fix joint limit viz
 
-- [ ] visualize other forces
+- [x] visualize rotation lambda
 
   - idem
   - GetTotalLambdaRotation
 
 - [ ] symmetry
+- [ ] contacts

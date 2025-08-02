@@ -31,7 +31,7 @@ export const defaultPartBp: PartBlueprintDefaults = {
 
 export const defaultJointBp: JointBlueprintDefaults = {
   maxTorque: 0.1,
-  torqueFloor: 0.2,
+  torqueFloor: 0.1,
 
   targetVelocity: 10,
 
@@ -374,8 +374,10 @@ export function buildRagdollFromBlueprint(
       body,
       vizRadius: 0,
       parent,
+
       torqueDir: { y: 0, p: 0, r: 0 },
       torque: { y: 0, p: 0, r: 0 },
+      lambda: { y: 0, p: 0, r: 0 },
     }
 
     // set radius to be used in visualizations
