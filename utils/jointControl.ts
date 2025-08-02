@@ -1,6 +1,7 @@
+import { radToDeg } from 'three/src/math/MathUtils.js'
 import { degToRad, lerp, scale, toThreeQuat } from './math'
 import { Part } from './types'
-import { Jolt, axisConfigs } from './world'
+import { Jolt, axisConfigs, bodyInterface } from './world'
 import * as THREE from 'three'
 
 // Store per-part torques to be applied each frame
@@ -96,16 +97,11 @@ export function createJointControls(
 export function updateJointTorques(
   parts: Record<string, Part>
 ) {
+  const velocity = new THREE.Vector3()
+
   for (const name in parts) {
-    const {
-      joint,
-      torqueDir,
-      torque,
-      lambda,
-      bp,
-      body,
-      parent,
-    } = parts[name]
+    const { joint, torqueDir, torque, lambda, bp } =
+      parts[name]
 
     if (!joint) continue
 
@@ -122,39 +118,21 @@ export function updateJointTorques(
       centerringExponent,
     } = jointBP
 
-    const parentBody = parent!.body
+    // Get relative rotation
+    const relativeRotationQuat =
+      joint.GetRotationInConstraintSpace()
+    const relativeRotation =
+      new THREE.Euler().setFromQuaternion(
+        toThreeQuat(relativeRotationQuat),
+        'YZX'
+      )
+    Jolt.destroy(relativeRotationQuat)
 
-    // --- Relative rotation scaled to constraint frame ---
-    // Get world quaternions
-    const qChild = toThreeQuat(body.GetRotation())
-    const qParent = toThreeQuat(parentBody.GetRotation())
-
-    // Convert joint reference rotation (THREE.Quaternion)
-    const jointRefLocal =
-      bp.joint?.rotation?.clone() ?? new THREE.Quaternion()
-
-    // The joint's reference orientation in world space is jointRefLocal * qParent
-    const jointRefQuat = jointRefLocal.multiply(qParent)
-
-    // Relative rotation: q_rel = q_jointRef^-1 * q_child
-    // TODO try using joint.GetRotationInConstraintSpace
-    const qRel = jointRefQuat
-      .clone()
-      .invert()
-      .multiply(qChild)
-
-    // Convert to Euler angles (in radians)
-    const euler = new THREE.Euler().setFromQuaternion(
-      qRel,
-      'YZX'
-    )
+    // Reset velocity
+    velocity.set(0, 0, 0)
 
     // Get joint limits (in degrees)
     const limits = jointBP.limits
-
-    const velocityArray: [number, number, number] = [
-      0, 0, 0,
-    ]
 
     const lambdaValues = joint.GetTotalLambdaMotorRotation()
     lambda.y = -lambdaValues.GetY()
@@ -164,7 +142,7 @@ export function updateJointTorques(
     Jolt.destroy(lambdaValues)
 
     for (let a = 0; a < axisConfigs.length; a++) {
-      const { jointAxis, rawAxis, joltAxis, torqueIdx } =
+      const { jointAxis, joltAxis, torqueAxis } =
         axisConfigs[a]
 
       const limit = limits[jointAxis] ?? 0
@@ -181,7 +159,8 @@ export function updateJointTorques(
 
       // get scaled angle to limits,
       // with 0 for at the center, -1 at one limit and 1 at the other
-      const scaledAngle = euler[rawAxis] / degToRad(limit)
+      const scaledAngle =
+        relativeRotation[torqueAxis] / degToRad(limit)
 
       let centeringScale = 0
       if (scaledAngle) {
@@ -197,6 +176,7 @@ export function updateJointTorques(
 
         centeringScale **= centerringExponent
         centeringScale *= centerringFraction
+        // centeringScale *= 0
 
         if (scaledAngle < 0)
           centeringScale = -centeringScale
@@ -221,12 +201,16 @@ export function updateJointTorques(
         targetVelocityA = 0
       }
 
-      velocityArray[torqueIdx] = targetVelocityA
+      velocity[torqueAxis] = targetVelocityA
     }
 
-    const velocityVec3 = new Jolt.Vec3(...velocityArray)
-
     // Apply the torque to the joint
+    if (!joint.IsActive())
+      bodyInterface.ActivateConstraint(joint)
+
+    const velocityVec3 = new Jolt.Vec3(
+      ...velocity.toArray()
+    )
     joint.SetTargetAngularVelocityCS(velocityVec3)
 
     Jolt.destroy(velocityVec3)

@@ -13,7 +13,7 @@ export let bodyInterface: JoltType.BodyInterface
 
 export const axisConfigs: AxisConfig[] = [
   {
-    torqueIdx: 1,
+    torqueAxis: 'y',
     rawAxis: 'z',
     partLabel: 'Thickness',
     partAxis: 't',
@@ -22,7 +22,7 @@ export const axisConfigs: AxisConfig[] = [
     joltAxis: 0,
   },
   {
-    torqueIdx: 2,
+    torqueAxis: 'z',
     rawAxis: 'x',
     partLabel: 'Width',
     partAxis: 'w',
@@ -31,7 +31,7 @@ export const axisConfigs: AxisConfig[] = [
     joltAxis: 0,
   },
   {
-    torqueIdx: 0,
+    torqueAxis: 'x',
     rawAxis: 'y',
     partLabel: 'Length',
     partAxis: 'l',
@@ -92,12 +92,12 @@ export function initWorld(JoltArg: typeof JoltType) {
   physicsSystem = jolt.GetPhysicsSystem()
   bodyInterface = physicsSystem.GetBodyInterface()
 
-  physicsSystem.SetGravity(new Jolt.Vec3(0, 0, 0))
+  // physicsSystem.SetGravity(new Jolt.Vec3(0, 0, 0))
 
   const physicsSettings = physicsSystem.GetPhysicsSettings()
-  physicsSettings.mAllowSleeping = false
-  // physicsSettings.mPointVelocitySleepThreshold = 1e-4
-  // physicsSettings.mTimeBeforeSleep = 10
+  // physicsSettings.mAllowSleeping = false
+  physicsSettings.mPointVelocitySleepThreshold = 1e-4
+  physicsSettings.mTimeBeforeSleep = 10
 }
 
 export const LAYER_NON_MOVING = 0

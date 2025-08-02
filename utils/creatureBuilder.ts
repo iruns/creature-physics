@@ -30,13 +30,13 @@ export const defaultPartBp: PartBlueprintDefaults = {
 }
 
 export const defaultJointBp: JointBlueprintDefaults = {
-  maxTorque: 0.1,
+  maxTorque: 0.8,
   torqueFloor: 0.1,
 
   targetVelocity: 10,
 
   centerringFraction: 0.1,
-  centerringStart: 0.66,
+  centerringStart: 0.5,
   centerringExponent: 3,
 }
 
@@ -55,9 +55,18 @@ export function buildRagdollFromBlueprint(
 
   function bakePartBp(
     partBp: PartBlueprint,
-    parentPartBp?: BakedPartBlueprint
+    parentPartBp?: BakedPartBlueprint,
+    prefix = ''
   ) {
-    const { children } = partBp
+    const { children, symmetrical } = partBp
+
+    // if symmetrical, create a copy for the right side
+    let symPartBp: PartBlueprint | undefined
+    if (symmetrical) {
+      symPartBp = JSON.parse(
+        JSON.stringify(partBp)
+      ) as PartBlueprint
+    }
 
     const bakedPartBp: BakedPartBlueprint = {
       ...defaultPartBp,
@@ -65,7 +74,7 @@ export function buildRagdollFromBlueprint(
       idx: bakedPartBps.length,
 
       parent: parentPartBp,
-      children: partBp.children as BakedPartBlueprint[],
+      children: [],
 
       worldPosition: new THREE.Vector3(),
       worldRotation: new THREE.Quaternion(),
@@ -128,6 +137,10 @@ export function buildRagdollFromBlueprint(
           ...childOffset,
           baked: bakedChildOffset,
         },
+
+        axis: joint.axis || {},
+        limits: joint.limits || {},
+
         rotation: new THREE.Quaternion(),
         yawAxis: new THREE.Vector3(),
         twistAxis: new THREE.Vector3(),
@@ -151,22 +164,45 @@ export function buildRagdollFromBlueprint(
       twistAxis.setFromMatrixColumn(matrix, 1).normalize()
 
       // use joint and parentPart to calculate the world rotation
-      worldRotation.copy(rotation)
-      worldRotation.multiply(parentPartBp.worldRotation)
+      worldRotation.copy(parentPartBp.worldRotation)
+      worldRotation.multiply(rotation)
+
+      parentPartBp.children!.push(bakedPartBp)
+
+      if (symmetrical) prefix = 'l-'
+      bakedPartBp.name = prefix + bakedPartBp.name
     }
 
     bakedPartBps.push(bakedPartBp)
     nameToIndex[bakedPartBp.name] = idx
 
     if (children) {
-      children.forEach((child, i) => {
-        children[i] = bakePartBp(child, bakedPartBp)
+      children.forEach((child) => {
+        bakePartBp(child, bakedPartBp, prefix)
       })
+    }
+
+    if (symPartBp) {
+      delete symPartBp.symmetrical
+
+      const symJointBp = symPartBp.joint!
+
+      const { parentOffset, childOffset, axis } = symJointBp
+
+      if (parentOffset.w) parentOffset.w *= -1
+      if (parentOffset.from?.w) parentOffset.from.w *= -1
+
+      if (childOffset.w) childOffset.w *= -1
+      if (childOffset.from?.w) childOffset.from.w *= -1
+
+      if (axis?.y) axis.y *= -1
+      if (axis?.r) axis.r *= -1
+
+      bakePartBp(symPartBp, parentPartBp, 'r-')
     }
 
     return bakedPartBp
   }
-  // TODO clone deep the blueprint
   bakePartBp(blueprint)
 
   // Build skeleton

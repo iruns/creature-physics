@@ -7,7 +7,7 @@ export type JointAxis = 'y' | 'p' | 'r'
 export type AnchorValue = -1 | 0 | 1
 
 export type AxisConfig = {
-  torqueIdx: number
+  torqueAxis: RawAxis
   rawAxis: RawAxis
   partLabel: string
   partAxis: PartAxis
@@ -23,6 +23,9 @@ export type JointAxisVec3<T = number> = Record<JointAxis, T>
 // Blueprint
 export type PartBlueprint = {
   name: string
+
+  symmetrical?: boolean
+
   /** Defaults to Box */
   shape?: PartShape
   size: {
@@ -68,9 +71,9 @@ export type JointBlueprint = {
     from?: Partial<PartAxisVec3<AnchorValue>>
   }
   /** Yaw, pitch, roll axes in parent local space */
-  axis: Partial<JointAxisVec3>
+  axis?: Partial<JointAxisVec3>
   /** Yaw, pitch, roll limits in degrees, relative to axis */
-  limits: Partial<JointAxisVec3>
+  limits?: Partial<JointAxisVec3>
 } & Partial<JointBlueprintDefaults>
 
 export interface JointBlueprintDefaults {
@@ -111,6 +114,9 @@ export type BakedJointBlueprint = JointBlueprint &
     childOffset: JointBlueprint['parentOffset'] & {
       baked: THREE.Vector3
     }
+
+    axis: NonNullable<JointBlueprint['axis']>
+    limits: NonNullable<JointBlueprint['limits']>
 
     rotation: THREE.Quaternion
     yawAxis: THREE.Vector3

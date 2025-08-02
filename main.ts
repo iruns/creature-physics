@@ -35,12 +35,14 @@ window.addEventListener('DOMContentLoaded', () => {
     // Blueprint for minimal skeleton: upper arm and lower arm
     const blueprint: PartBlueprint = {
       name: 'chest',
-      size: { l: 0.18, w: 0.25, t: 0.06, r: 0 },
+      size: { l: 0.18, w: 0.25, t: 0.08, r: 0 },
       position: { x: 0, y: 0.5, z: 0 },
       rotation: { y: 0, p: 0, r: 0 },
       children: [
         {
           name: 'upper-arm',
+          symmetrical: true,
+
           size: { l: 0.22, w: 0.05, t: 0.04, r: 0 },
           joint: {
             parentOffset: {
@@ -48,8 +50,8 @@ window.addEventListener('DOMContentLoaded', () => {
               from: { w: 1, l: 1 },
             },
             childOffset: { from: { l: -1 } },
-            axis: { y: -90, p: 0, r: 0 },
-            limits: { y: 10, p: 10, r: 30 },
+            axis: { y: -120, p: -50, r: -20 },
+            limits: { y: 120, p: 110, r: 40 },
           },
           children: [
             {
@@ -58,34 +60,21 @@ window.addEventListener('DOMContentLoaded', () => {
               joint: {
                 parentOffset: { from: { l: 1 } },
                 childOffset: { from: { l: -1 } },
-                axis: { y: 0, p: 0, r: 0 },
-                limits: { y: 10, p: 10, r: 30 },
+                axis: { p: -80, r: 0 },
+                limits: { p: 80, r: 80 },
               },
               // children: [
-              //   {
-              //     name: 'lower-arm-end',
-              //     size: { l: 0.2, w: 0.04, t: 0.02, r: 0 },
-              //     joint: {
-              //       parentOffset: { from: { l: 1 } },
-              //       childOffset: { from: { l: -1 } },
-              //       axis: { y: 0, p: 0, r: 0 },
-              //       limits: { r: 60 },
-              //       maxTorque: 0.1,
-              //     },
-              //     // children: [
-              //     //   {
-              //     //     name: 'hand',
-              //     //     size: { l: 0.08, w: 0.04, t: 0.03, r: 0 },
-              //     //     joint: {
-              //     //       parentOffset: { from: { l: 1 } },
-              //     //       childOffset: { from: { l: -1 } },
-              //     //       axis: { y: 0, p: 0, r: 0 },
-              //     //       limits: { y: 0, p: 60 },
-              //     //       maxTorque: 0.05,
-              //     //     },
-              //     //   },
-              //     // ],
-              //   },
+              //       {
+              //         name: 'hand',
+              //         size: { l: 0.08, w: 0.04, t: 0.03, r: 0 },
+              //         joint: {
+              //           parentOffset: { from: { l: 1 } },
+              //           childOffset: { from: { l: -1 } },
+              //           axis: { y: 0, p: 0, r: 0 },
+              //           limits: { y: 0, p: 60 },
+              //           maxTorque: 0.05,
+              //         },
+              //       },
               // ],
             },
           ],

@@ -54,5 +54,7 @@
   - idem
   - GetTotalLambdaRotation
 
-- [ ] symmetry
+- [x] symmetry
+
+- [x] fix centerring force to be relative to the axis center
 - [ ] contacts
