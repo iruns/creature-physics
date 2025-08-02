@@ -19,8 +19,6 @@ import {
   RootPart,
   JointBlueprintDefaults,
   PartBlueprintDefaults,
-  YPSet,
-  RSet,
   PartShape,
 } from './types'
 
@@ -33,7 +31,13 @@ export const defaultPartBp: PartBlueprintDefaults = {
 
 export const defaultJointBp: JointBlueprintDefaults = {
   maxTorque: 0.1,
+  torqueFloor: 0.2,
+
   targetVelocity: 10,
+
+  centerringFraction: 0.1,
+  centerringStart: 0.66,
+  centerringExponent: 3,
 }
 
 export function buildRagdollFromBlueprint(
@@ -77,9 +81,12 @@ export function buildRagdollFromBlueprint(
         throw new Error(
           'Root part must have position and rotation'
         )
-      worldPosition.copy(partBp.position)
-      const { y, p, r } = partBp.rotation
-      worldRotation.copy(quaternionFromYPR(y, p, r))
+
+      const { x: pX, y: pY, z: pZ } = partBp.position
+      worldPosition.set(pX ?? 0, pY ?? 0, pZ ?? 0)
+
+      const { y: rY, p: rP, r: rR } = partBp.rotation
+      worldRotation.copy(quaternionFromYPR(rY, rP, rR))
     } else {
       const { joint, size } = partBp
 
@@ -131,7 +138,7 @@ export function buildRagdollFromBlueprint(
         bakedJoint
 
       // Calculate joint rotation from the unprocessed axes
-      const { y, p, r } = axis as YPSet & RSet
+      const { y, p, r } = axis
       rotation.copy(
         quaternionFromYPR(y ?? 0, p ?? 0, r ?? 0)
       )
@@ -231,7 +238,11 @@ export function buildRagdollFromBlueprint(
     // if root
     if (!parent) {
       const { x, y, z } = partBp.position!
-      settingsPart.mPosition = new Jolt.RVec3(x, y, z)
+      settingsPart.mPosition = new Jolt.RVec3(
+        x ?? 0,
+        y ?? 0,
+        z ?? 0
+      )
     } else {
       // calculate world position of joint to this part
       refObject.quaternion.copy(partBp.worldRotation)
@@ -298,46 +309,21 @@ export function buildRagdollFromBlueprint(
       jointSettings.mAxisY2 = mAxisY2
 
       // Set limits
-      const { y, p, r } = jointBp.limits as YPSet & RSet
-      // if y & p
-      if (r === undefined) {
-        // Freeze the r
-        jointSettings.MakeFixedAxis(
-          jointAxisConfigs.r.joltAxis
-        )
+      jointSettings.mSwingType = JoltType.ESwingType_Cone
 
-        // Set y & p limits
-        jointSettings.mSwingType = JoltType.ESwingType_Cone
+      for (const config of axisConfigs) {
+        const { joltAxis, jointAxis } = config
+        const limit = jointBp.limits[jointAxis]
 
-        jointSettings.SetLimitedAxis(
-          jointAxisConfigs.p.joltAxis,
-          0,
-          degToRad(p)
-        )
-
-        jointSettings.SetLimitedAxis(
-          jointAxisConfigs.y.joltAxis,
-          0,
-          degToRad(y)
-        )
-      }
-      // if r
-      else {
-        // Freeze the y & p
-        jointSettings.MakeFixedAxis(
-          jointAxisConfigs.y.joltAxis
-        )
-        jointSettings.MakeFixedAxis(
-          jointAxisConfigs.p.joltAxis
-        )
-
-        // set r limits
-        const limitRad = degToRad(r)
-        jointSettings.SetLimitedAxis(
-          jointAxisConfigs.r.joltAxis,
-          -limitRad,
-          limitRad
-        )
+        if (limit) {
+          jointSettings.SetLimitedAxis(
+            joltAxis,
+            jointAxis == 'r' ? -degToRad(limit) : 0,
+            degToRad(limit)
+          )
+        } else {
+          jointSettings.MakeFixedAxis(joltAxis)
+        }
       }
     }
 

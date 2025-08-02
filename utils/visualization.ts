@@ -2,18 +2,10 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/Addons.js'
 import type JoltType from 'jolt-physics'
 import { Jolt } from './world'
-import {
-  Part,
-  RSet,
-  PartViz,
-  YPSet,
-  PartAxis,
-  JointAxis,
-} from './types'
+import { Part, PartViz, PartAxis, JointAxis } from './types'
 import {
   degToRad,
   exponentiate,
-  jointToThreeAxis,
   partToThreeAxis,
   toThreeQuat,
   toThreeVec3,
@@ -283,15 +275,15 @@ export function visualizePart(
 
   const parentViz = parent
 
-  const { y, p, r } = jointBp.limits as YPSet & RSet
+  const { y, p, r } = jointBp.limits
 
   const limitRadius = part.vizRadius * 3
 
   // if y and/or p
-  if (r == undefined) {
+  if (y || p) {
     // Convert all angles from degrees to radians for geometry
-    const pHalfConeRad = degToRad(p)
-    const yHalfConeRad = degToRad(y)
+    const pHalfConeRad = p ? degToRad(p) : 0
+    const yHalfConeRad = y ? degToRad(y) : 0
 
     let color = colors.swing
     const swingSegments = 8
@@ -379,7 +371,7 @@ export function visualizePart(
   }
 
   // if r
-  else {
+  if (r) {
     // Twist arc (partial ring)
     const twistSegments = 8
     const twistGeometry = new THREE.BufferGeometry()

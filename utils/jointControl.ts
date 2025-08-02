@@ -1,14 +1,6 @@
-import { radToDeg } from 'three/src/math/MathUtils.js'
-import { defaultJointBp } from './creatureBuilder'
-import {
-  degToRad,
-  lerp,
-  scale,
-  toThreeQuat,
-  toThreeVec3,
-} from './math'
-import { Part, RSet, YPSet } from './types'
-import { Jolt, axisConfigs, rawAxisConfigs } from './world'
+import { degToRad, lerp, scale, toThreeQuat } from './math'
+import { Part } from './types'
+import { Jolt, axisConfigs } from './world'
 import * as THREE from 'three'
 
 // Store per-part torques to be applied each frame
@@ -49,7 +41,7 @@ export function createJointControls(
     jointDiv.style.marginBottom = '10px'
     jointDiv.innerHTML = `<div style="margin-bottom:2px;"><b>${name}</b></div>`
 
-    const limits = part.bp.joint!.limits as YPSet & RSet
+    const limits = part.bp.joint!.limits
 
     axisConfigs.forEach(({ jointLabel, jointAxis }) => {
       if (!limits[jointAxis]) return
@@ -107,15 +99,20 @@ export function updateJointTorques(
   for (const name in parts) {
     const { joint, torqueDir, torque, bp, body, parent } =
       parts[name]
+
     if (!joint) continue
 
     const jointBP = bp.joint!
-    const maxTorque =
-      jointBP.maxTorque ?? defaultJointBp.maxTorque
-    const minTorque = jointBP.minTorque ?? -maxTorque
-    let targetVelocity =
-      jointBP.targetVelocity ??
-      defaultJointBp.targetVelocity
+    const {
+      maxTorque,
+      minTorque = -maxTorque,
+      torqueFloor,
+      targetVelocity,
+
+      centerringFraction,
+      centerringStart,
+      centerringExponent,
+    } = jointBP
 
     const parentBody = parent!.body
 
@@ -144,7 +141,7 @@ export function updateJointTorques(
     )
 
     // Get joint limits (in degrees)
-    const limits = jointBP.limits as YPSet & RSet
+    const limits = jointBP.limits
 
     const velocityArray: [number, number, number] = [
       0, 0, 0,
@@ -160,7 +157,6 @@ export function updateJointTorques(
       const axisDir = torqueDir[jointAxis]
       const settings = joint.GetMotorSettings(joltAxis)
 
-      const torqueFloor = 0.5
       const maxTorqueFloor = maxTorque * torqueFloor
       settings.set_mMaxTorqueLimit(maxTorqueFloor)
       const minTorqueFloor = minTorque * torqueFloor
@@ -175,19 +171,18 @@ export function updateJointTorques(
         centeringScale = scale(
           0,
           1,
-          0.66,
+          centerringStart,
           1,
           Math.abs(scaledAngle),
           true
         )
         centeringScale = Math.max(0, centeringScale)
 
-        centeringScale **= 3
-        centeringScale *= 0.1
+        centeringScale **= centerringExponent
+        centeringScale *= centerringFraction
 
         if (scaledAngle < 0)
           centeringScale = -centeringScale
-        centeringScale = 0
       }
 
       // const sumScale = axisDir
@@ -202,7 +197,7 @@ export function updateJointTorques(
         )
       } else if (sumScale < 0) {
         settings.set_mMinTorqueLimit(
-          lerp(minTorqueFloor, minTorque, sumScale)
+          lerp(minTorqueFloor, minTorque, -sumScale)
         )
         targetVelocityA = -targetVelocityA
       } else {

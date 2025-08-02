@@ -16,16 +16,9 @@ export type AxisConfig = {
   joltAxis: JoltType.SixDOFConstraintSettings_EAxis
 }
 
+export type RawAxisVec3<T = number> = Record<RawAxis, T>
 export type PartAxisVec3<T = number> = Record<PartAxis, T>
 export type JointAxisVec3<T = number> = Record<JointAxis, T>
-
-export type YPSet = {
-  y: number
-  p: number
-}
-export type RSet = {
-  r: number
-}
 
 // Blueprint
 export type PartBlueprint = {
@@ -45,8 +38,8 @@ export type PartBlueprint = {
 
   children?: PartBlueprint[]
   // Only root part has position/rotation
-  position?: Record<RawAxis, number>
-  rotation?: YPSet & RSet
+  position?: Partial<RawAxisVec3>
+  rotation?: Partial<JointAxisVec3>
   // Only for non-root parts
   joint?: JointBlueprint
 } & Partial<PartBlueprintDefaults>
@@ -74,8 +67,10 @@ export type JointBlueprint = {
   childOffset: Partial<PartAxisVec3> & {
     from?: Partial<PartAxisVec3<AnchorValue>>
   }
-  axis: YPSet & RSet // Yaw, pitch, roll axes in parent local space
-  limits: YPSet | RSet // Yaw and pitch OR roll limits in degrees
+  /** Yaw, pitch, roll axes in parent local space */
+  axis: Partial<JointAxisVec3>
+  /** Yaw, pitch, roll limits in degrees, relative to axis */
+  limits: Partial<JointAxisVec3>
 } & Partial<JointBlueprintDefaults>
 
 export interface JointBlueprintDefaults {
@@ -83,8 +78,12 @@ export interface JointBlueprintDefaults {
   maxTorque: number
   /** min force for motors, if not set, will be -maxForce */
   minTorque?: number
-  // TODO torques should be per axis
+  torqueFloor: number
   targetVelocity: number
+
+  centerringFraction: number
+  centerringStart: number
+  centerringExponent: number
 }
 
 // Baked blueprint, pre conversion to creature
