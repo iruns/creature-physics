@@ -40,12 +40,17 @@ export type PartBlueprint = {
   }
 
   children?: PartBlueprint[]
-  // Only root part has position/rotation
-  position?: Partial<RawAxisVec3>
-  rotation?: Partial<JointAxisVec3>
+
   // Only for non-root parts
   joint?: JointBlueprint
 } & Partial<PartBlueprintDefaults>
+
+export type RootPartBlueprint = PartBlueprint & {
+  id: string
+
+  position: Partial<RawAxisVec3>
+  rotation: Partial<JointAxisVec3>
+}
 
 export enum PartShape {
   Sphere,
@@ -54,8 +59,11 @@ export enum PartShape {
   Box,
 }
 
-export interface PartBlueprintDefaults {
+export interface PartBlueprintDefaults extends Material {
   color: number
+}
+
+export interface Material {
   density: number
   friction: number
   restitution: number
@@ -81,12 +89,13 @@ export interface JointBlueprintDefaults {
   maxTorque: number
   /** min force for motors, if not set, will be -maxForce */
   minTorque?: number
+
   torqueFloor: number
   targetVelocity: number
 
-  centerringFraction: number
-  centerringStart: number
-  centerringExponent: number
+  centeringFraction: number
+  centeringStart: number
+  centeringExponent: number
 }
 
 // Baked blueprint, pre conversion to creature
@@ -96,6 +105,8 @@ export type BakedPartBlueprint = Omit<
 > &
   PartBlueprintDefaults & {
     idx: number
+
+    hSize: PartAxisVec3
 
     parent?: BakedPartBlueprint
     children?: BakedPartBlueprint[]
@@ -126,7 +137,10 @@ export type BakedJointBlueprint = JointBlueprint &
 // Resulting creature
 export interface Part {
   bp: BakedPartBlueprint
-  body: JoltType.Body
+  id: string
+
+  body: JoltBody
+
   /** From size and shape that will be used to size visualizations */
   vizRadius: number
   children?: Record<string, Part>
@@ -136,10 +150,20 @@ export interface Part {
   joint?: JoltType.SixDOFConstraint
   torqueDir: JointAxisVec3
   torque: JointAxisVec3
+
+  /** Lambda force of the motor to the target velocity */
   lambda: JointAxisVec3
+  // scaledRotation: JointAxisVec3
+
+  contacts: Contact[]
 }
 
 export type RootPart = Omit<Part, 'parent' | 'joint'>
+
+export interface JoltBody extends JoltType.Body {
+  getPart: () => Part
+  isJoint?: boolean
+}
 
 export interface BuildResult {
   creature: RootPart
@@ -147,6 +171,16 @@ export interface BuildResult {
   parts: Record<string, Part>
   bodies: Record<string, JoltType.Body>
   joints: Record<string, JoltType.SixDOFConstraint>
+}
+
+export interface Contact {
+  position: PartAxisVec3
+  localPosition: PartAxisVec3
+  scaledPosition: PartAxisVec3
+
+  strength: number
+  friction: number
+  otherBodyId: string
 }
 
 export interface PartViz extends THREE.Mesh {

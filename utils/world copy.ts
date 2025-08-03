@@ -96,7 +96,7 @@ export function initWorld(JoltArg: typeof JoltType) {
   physicsSystem = jolt.GetPhysicsSystem()
   bodyInterface = physicsSystem.GetBodyInterface()
 
-  setupContactListeners(physicsSystem)
+  // setupContactListeners(physicsSystem)
 
   // physicsSystem.SetGravity(new Jolt.Vec3(0, 0, 0))
 
@@ -173,59 +173,65 @@ const setupContactListeners = function (
     const body1 = Jolt.wrapPointer(body1Pointer, Jolt.Body)
     const body2 = Jolt.wrapPointer(body2Pointer, Jolt.Body)
 
-    const part1 = (body1 as JoltBody).getPart?.()
-    const part2 = (body2 as JoltBody).getPart?.()
+    const part1 = (body1 as JoltBody)?.getPart()
+    const part2 = (body2 as JoltBody)?.getPart()
 
     if (!part1 && !part2) return
-
-    const quat1 = body1.GetRotation()
-    const quat2 = body2.GetRotation()
 
     const manifold = Jolt.wrapPointer(
       manifoldPointer,
       Jolt.ContactManifold
     )
 
+    // const strength = manifold.
+    // Jolt.EstimateCollisionResponse
+    const settings = Jolt.wrapPointer(
+      settingsPointer,
+      Jolt.ContactSettings
+    )
+
+    const strength = 0
+    // const contact: Contact = {
+    //   position: {x: }
+    // }
+
     const pointsOn1 =
       manifold.get_mRelativeContactPointsOn1()
     const pointsOn2 =
       manifold.get_mRelativeContactPointsOn2()
 
-    console.log(
-      part1?.id,
-      part2?.id,
-      manifold.get_mPenetrationDepth()
-    )
+    console.log(part1?.id, part2?.id)
 
-    let i = 0
-    // while (true) {
-    for (let x = 0; x < 5; x++) {
-      try {
-        const pointOn1 = pointsOn1.at(i)
-        if (!pointsOn1 || !pointOn1.Length()) break
-        const pointOn2 = pointsOn2.at(i)
-        if (!pointsOn2 || !pointOn2.Length()) break
+    //     let i = 0
+    //     // while (true) {
+    //     for (let x = 0; x < 5; x++) {
+    //       try {
+    //         const pointOn1 = pointsOn1.at(i)
+    //         if (!pointsOn1 || !pointOn1.Length()) break
+    //         const pointOn2 = pointsOn2.at(i)
+    //         if (!pointsOn2 || !pointOn2.Length()) break
+    //
+    //         console.log('\t', i)
+    //         if (part1)
+    //           console.log(toScaledPartVec3(pointOn1, part1))
+    //         if (part2)
+    //           console.log(toScaledPartVec3(pointOn1, part2))
+    //         // part1.contacts.push
+    //
+    //         i++
+    //       } finally {
+    //         break
+    //       }
+    //     }
 
-        console.log('\t', i)
-        if (part1)
-          console.log(
-            // toScaledPartVec3(pointOn1, part1)
-            toScaledPartVec3(quat1.MulVec3(pointOn1), part1)
-          )
-        if (part2)
-          console.log(
-            // toScaledPartVec3(pointOn1, part2)
-            toScaledPartVec3(quat2.MulVec3(pointOn1), part2)
-              .l
-          )
-
-        // part1.contacts.push
-
-        i++
-      } finally {
-        break
-      }
-    }
+    // collisionLog.value +=
+    //   'OnContactAdded ' +
+    //   body1.GetID().GetIndex() +
+    //   ' ' +
+    //   body2.GetID().GetIndex() +
+    //   ' ' +
+    //   manifold.mWorldSpaceNormal.ToString() +
+    //   '\n'
   }
   contactListener.OnContactPersisted = (
     body1Pointer,
@@ -236,60 +242,30 @@ const setupContactListeners = function (
     const body1 = Jolt.wrapPointer(body1Pointer, Jolt.Body)
     const body2 = Jolt.wrapPointer(body2Pointer, Jolt.Body)
 
-    const part1 = (body1 as JoltBody).getPart?.()
-    const part2 = (body2 as JoltBody).getPart?.()
+    const part1 = (body1 as JoltBody)?.getPart()
+    const part2 = (body2 as JoltBody)?.getPart()
 
-    if (!part1 && !part2) return
+    if (!part1 && part2) return
 
-    const quat1 = body1.GetRotation()
-    const quat2 = body2.GetRotation()
+    // console.log('\t', part1.id, part2.id)
 
     const manifold = Jolt.wrapPointer(
       manifoldPointer,
       Jolt.ContactManifold
     )
-
-    const pointsOn1 =
-      manifold.get_mRelativeContactPointsOn1()
-    const pointsOn2 =
-      manifold.get_mRelativeContactPointsOn2()
-
-    console.log(
-      '----per',
-      part1?.id,
-      part2?.id,
-      manifold.get_mPenetrationDepth()
+    const settings = Jolt.wrapPointer(
+      settingsPointer,
+      Jolt.ContactSettings
     )
 
-    let i = 0
-    // while (true) {
-    for (let x = 0; x < 5; x++) {
-      try {
-        const pointOn1 = pointsOn1.at(i)
-        if (!pointsOn1 || !pointOn1.Length()) break
-        const pointOn2 = pointsOn2.at(i)
-        if (!pointsOn2 || !pointOn2.Length()) break
-
-        console.log('\t', i)
-        if (part1)
-          console.log(
-            // toScaledPartVec3(pointOn1, part1)
-            toScaledPartVec3(quat1.MulVec3(pointOn1), part1)
-          )
-        if (part2)
-          console.log(
-            // toScaledPartVec3(pointOn1, part2)
-            toScaledPartVec3(quat2.MulVec3(pointOn1), part2)
-              .l
-          )
-
-        // part1.contacts.push
-
-        i++
-      } finally {
-        break
-      }
-    }
+    // collisionLog.value +=
+    //   'OnContactPersisted ' +
+    //   body1.GetID().GetIndex() +
+    //   ' ' +
+    //   body2.GetID().GetIndex() +
+    //   ' ' +
+    //   manifold.mWorldSpaceNormal.ToString() +
+    //   '\n'
   }
   contactListener.OnContactRemoved = (
     subShapePairPointer
@@ -370,62 +346,5 @@ export function updatePhysics(
         // get motor lambdas
       }
     }
-  }
-}
-
-// import Jolt from "jolt-physics-js";
-
-// TODO add effect of gravity
-
-/**
- * Estimate collision impact strength and friction force between two bodies in Jolt.
- * @param bodyA First body.
- * @param bodyB Second body.
- * @param contactNormal Normal vector at the contact point, should be normalized.
- * @returns { impactStrength: number, frictionForce: number }
- */
-export function computeCollisionImpactStrength(
-  bodyA: JoltType.Body,
-  bodyB: JoltType.Body,
-  contactNormal: JoltType.Vec3
-): { impactStrength: number; frictionForce: number } {
-  // Get velocities
-  const velA = bodyA.GetLinearVelocity()
-  const velB = bodyB.GetLinearVelocity()
-
-  // Relative velocity at contact
-  const relVel = velB.Sub(velA)
-
-  // Project relative velocity onto contact normal to get impact velocity
-  const impactVel = relVel.Dot(contactNormal)
-
-  // Get inverse masses
-  const invMassA =
-    bodyA.GetMotionProperties()?.GetInverseMass() ?? 0.0
-  const invMassB =
-    bodyB.GetMotionProperties()?.GetInverseMass() ?? 0.0
-
-  // Calculate effective mass along the contact normal
-  const effectiveMass =
-    invMassA + invMassB > 0
-      ? 1.0 / (invMassA + invMassB)
-      : 1e8
-
-  // Impact strength: normal impulse estimate
-  const impactStrength = Math.abs(effectiveMass * impactVel)
-
-  // Friction calculation
-  const frictionA = bodyA.GetFriction()
-  const frictionB = bodyB.GetFriction()
-  const combinedFriction = Math.sqrt(
-    Math.max(0, frictionA) * Math.max(0, frictionB)
-  )
-
-  // Friction force is proportional to normal impulse (Coulomb friction model)
-  const frictionForce = combinedFriction * impactStrength
-
-  return {
-    impactStrength,
-    frictionForce,
   }
 }

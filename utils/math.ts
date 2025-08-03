@@ -6,7 +6,12 @@ import {
   Jolt,
   partAxisConfigs,
 } from './world'
-import { JointAxis, PartAxis } from './types'
+import {
+  JointAxis,
+  Part,
+  PartAxis,
+  PartAxisVec3,
+} from './types'
 
 // Helper to convert degrees to radians
 export function degToRad(deg: number): number {
@@ -74,6 +79,33 @@ export const toThreeVec3 = (
   v: JoltType.Vec3
 ): THREE.Vector3 =>
   new THREE.Vector3(v.GetX(), v.GetY(), v.GetZ())
+
+export const toPartVec3 = (
+  v: JoltType.Vec3
+): PartAxisVec3 => ({
+  w: v.GetX(),
+  l: v.GetY(),
+  t: v.GetZ(),
+})
+
+export const toScaledPartVec3 = (
+  v: JoltType.Vec3,
+  part: Part
+): PartAxisVec3 => {
+  const result = toPartVec3(v)
+
+  const { l, w, t } = part.bp.hSize
+  if (l) result.l /= l
+  else result.l = 0
+
+  if (w) result.w /= w
+  else result.w = 0
+
+  if (t) result.t /= t
+  else result.t = 0
+
+  return result
+}
 
 export const toJoltVec3 = (
   v: THREE.Vector3

@@ -4,6 +4,7 @@ import {
   PartBlueprint,
   PartShape,
   PartViz,
+  RootPartBlueprint,
 } from './utils/types'
 import { buildRagdollFromBlueprint } from './utils/creatureBuilder'
 import {
@@ -33,53 +34,59 @@ window.addEventListener('DOMContentLoaded', () => {
     addToThreeScene(floorBody, 0x888888)
 
     // Blueprint for minimal skeleton: upper arm and lower arm
-    const blueprint: PartBlueprint = {
+    const blueprint: RootPartBlueprint = {
+      id: 'h-1',
       name: 'chest',
-      size: { l: 0.18, w: 0.25, t: 0.08, r: 0 },
-      position: { x: 0, y: 0.5, z: 0 },
-      rotation: { y: 0, p: 0, r: 0 },
-      children: [
-        {
-          name: 'upper-arm',
-          symmetrical: true,
 
-          size: { l: 0.22, w: 0.05, t: 0.04, r: 0 },
-          joint: {
-            parentOffset: {
-              l: -0.03,
-              from: { w: 1, l: 1 },
-            },
-            childOffset: { from: { l: -1 } },
-            axis: { y: -120, p: -50, r: -20 },
-            limits: { y: 120, p: 110, r: 40 },
-          },
-          children: [
-            {
-              name: 'lower-arm',
-              size: { l: 0.22, w: 0.04, t: 0.03, r: 0 },
-              joint: {
-                parentOffset: { from: { l: 1 } },
-                childOffset: { from: { l: -1 } },
-                axis: { p: -80, r: 0 },
-                limits: { p: 80, r: 80 },
-              },
-              // children: [
-              //       {
-              //         name: 'hand',
-              //         size: { l: 0.08, w: 0.04, t: 0.03, r: 0 },
-              //         joint: {
-              //           parentOffset: { from: { l: 1 } },
-              //           childOffset: { from: { l: -1 } },
-              //           axis: { y: 0, p: 0, r: 0 },
-              //           limits: { y: 0, p: 60 },
-              //           maxTorque: 0.05,
-              //         },
-              //       },
-              // ],
-            },
-          ],
-        },
-      ],
+      // position: { x: 0, y: 0.5, z: 0 },
+      // size: { l: 0.18, w: 0.25, t: 0.08, r: 0 },
+      position: { x: 0, y: 0.5, z: 0 },
+      size: { l: 0.1, w: 0.1, t: 0.1, r: 0 },
+      rotation: { y: 0, p: 45, r: 0 },
+      //       children: [
+      //         {
+      //           name: 'upper-arm',
+      //           // symmetrical: true,
+      //
+      //           size: { l: 0.1, w: 0.1, t: 0.1, r: 0 },
+      //           // size: { l: 0.22, w: 0.05, t: 0.04, r: 0 },
+      //           joint: {
+      //             parentOffset: {
+      //               from: { w: 1, l: 1 },
+      //               w: 0.04,
+      //               l: -0.03,
+      //             },
+      //             childOffset: { from: { l: -1 }, l: -0.01 },
+      //             axis: { y: -120, p: -50, r: -20 },
+      //             limits: { y: 120, p: 110, r: 40 },
+      //           },
+      //           // children: [
+      //           //   {
+      //           //     name: 'lower-arm',
+      //           //     size: { l: 0.22, w: 0.04, t: 0.03, r: 0 },
+      //           //     joint: {
+      //           //       parentOffset: { from: { l: 1 } },
+      //           //       childOffset: { from: { l: -1 } },
+      //           //       axis: { p: -80, r: 0 },
+      //           //       limits: { p: 80, r: 80 },
+      //           //     },
+      //           //     // children: [
+      //           //     //       {
+      //           //     //         name: 'hand',
+      //           //     //         size: { l: 0.08, w: 0.04, t: 0.03, r: 0 },
+      //           //     //         joint: {
+      //           //     //           parentOffset: { from: { l: 1 } },
+      //           //     //           childOffset: { from: { l: -1 } },
+      //           //     //           axis: { y: 0, p: 0, r: 0 },
+      //           //     //           limits: { y: 0, p: 60 },
+      //           //     //           maxTorque: 0.05,
+      //           //     //         },
+      //           //     //       },
+      //           //     // ],
+      //           //   },
+      //           // ],
+      //         },
+      //       ],
     }
 
     // Use the blueprint utility
@@ -123,9 +130,10 @@ window.addEventListener('DOMContentLoaded', () => {
     let t = 0
     let off = false
     setInterval(() => {
+      updatePhysics(timeStep)
+
       updateJointTorques(parts)
 
-      updatePhysics(timeStep)
       render(timeStep)
 
       // if (!off && !bodies['lower-arm'].IsActive()) {

@@ -20,6 +20,8 @@ import {
   JointBlueprintDefaults,
   PartBlueprintDefaults,
   PartShape,
+  RootPartBlueprint,
+  JoltBody,
 } from './types'
 
 export const defaultPartBp: PartBlueprintDefaults = {
@@ -35,13 +37,13 @@ export const defaultJointBp: JointBlueprintDefaults = {
 
   targetVelocity: 10,
 
-  centerringFraction: 0.1,
-  centerringStart: 0.5,
-  centerringExponent: 3,
+  centeringFraction: 0.1,
+  centeringStart: 0.5,
+  centeringExponent: 3,
 }
 
 export function buildRagdollFromBlueprint(
-  blueprint: PartBlueprint,
+  rootPartBp: RootPartBlueprint,
   physicsSystem: JoltType.PhysicsSystem,
   layer: number = 1
 ): BuildResult {
@@ -58,7 +60,7 @@ export function buildRagdollFromBlueprint(
     parentPartBp?: BakedPartBlueprint,
     prefix = ''
   ) {
-    const { children, symmetrical } = partBp
+    const { children, symmetrical, size } = partBp
 
     // if symmetrical, create a copy for the right side
     let symPartBp: PartBlueprint | undefined
@@ -68,6 +70,10 @@ export function buildRagdollFromBlueprint(
       ) as PartBlueprint
     }
 
+    const l = size.l / 2
+    const w = (size.w ?? 0) / 2 || l
+    const t = (size.t ?? 0) / 2 || w
+
     const bakedPartBp: BakedPartBlueprint = {
       ...defaultPartBp,
       ...partBp,
@@ -75,6 +81,8 @@ export function buildRagdollFromBlueprint(
 
       parent: parentPartBp,
       children: [],
+
+      hSize: { l, w, t },
 
       worldPosition: new THREE.Vector3(),
       worldRotation: new THREE.Quaternion(),
@@ -86,15 +94,17 @@ export function buildRagdollFromBlueprint(
       bakedPartBp
 
     if (!parentPartBp) {
-      if (!partBp.position || !partBp.rotation)
+      const { position, rotation } =
+        partBp as RootPartBlueprint
+      if (!position || !rotation)
         throw new Error(
           'Root part must have position and rotation'
         )
 
-      const { x: pX, y: pY, z: pZ } = partBp.position
+      const { x: pX, y: pY, z: pZ } = position
       worldPosition.set(pX ?? 0, pY ?? 0, pZ ?? 0)
 
-      const { y: rY, p: rP, r: rR } = partBp.rotation
+      const { y: rY, p: rP, r: rR } = rotation
       worldRotation.copy(quaternionFromYPR(rY, rP, rR))
     } else {
       const { joint, size } = partBp
@@ -203,7 +213,7 @@ export function buildRagdollFromBlueprint(
 
     return bakedPartBp
   }
-  bakePartBp(blueprint)
+  bakePartBp(rootPartBp)
 
   // Build skeleton
   const skeleton = new Jolt.Skeleton()
@@ -229,27 +239,28 @@ export function buildRagdollFromBlueprint(
     const partBp = bakedPartBps[i]
     const settingsPart = settings.mParts.at(i)
 
-    const { shape: shapeType, size } = partBp
+    const {
+      shape: shapeType,
+      hSize: { l, w, t },
+      size,
+    } = partBp
 
     let shape: JoltType.ConvexShape
-    const hY = size.l / 2
-    const hX = (size.w ?? 0) / 2 || hY
-    const hZ = (size.t ?? 0) / 2 || hX
 
-    const roundingR = Math.min(hX, hY, hZ, size.r ?? 0)
+    const roundingR = Math.min(w, l, t, size.r ?? 0)
     switch (shapeType) {
       case PartShape.Sphere:
-        shape = new Jolt.SphereShape(hY)
+        shape = new Jolt.SphereShape(l)
         break
       case PartShape.Cylinder:
-        shape = new Jolt.CylinderShape(hY, hZ, roundingR)
+        shape = new Jolt.CylinderShape(l, t, roundingR)
         break
       case PartShape.Capsule:
-        shape = new Jolt.CapsuleShape(hY, hZ)
+        shape = new Jolt.CapsuleShape(l, t)
         break
       default:
         shape = new Jolt.BoxShape(
-          new Jolt.Vec3(hX, hY, hZ),
+          new Jolt.Vec3(w, l, t),
           roundingR
         )
         break
@@ -273,7 +284,7 @@ export function buildRagdollFromBlueprint(
 
     // if root
     if (!parent) {
-      const { x, y, z } = partBp.position!
+      const { x, y, z } = partBp.worldPosition!
       settingsPart.mPosition = new Jolt.RVec3(
         x ?? 0,
         y ?? 0,
@@ -365,13 +376,13 @@ export function buildRagdollFromBlueprint(
 
     settingsPart.mMotionType = Jolt.EMotionType_Dynamic
     // TEMP, lock the root position
-    if (!parent)
-      settingsPart.mMotionType = Jolt.EMotionType_Static
+    // if (!parent)
+    //   settingsPart.mMotionType = Jolt.EMotionType_Static
 
     settingsPart.mObjectLayer = layer
   }
   settings.Stabilize()
-  settings.DisableParentChildCollisions()
+  // settings.DisableParentChildCollisions()
 
   // Create ragdoll
   const ragdoll = settings.CreateRagdoll(
@@ -387,6 +398,8 @@ export function buildRagdollFromBlueprint(
   const joints: Record<string, JoltType.SixDOFConstraint> =
     {}
 
+  const creatureId = rootPartBp.id
+
   // Create creature object
   function fillPart(
     partBp: BakedPartBlueprint,
@@ -400,21 +413,32 @@ export function buildRagdollFromBlueprint(
       size,
     } = partBp
 
+    const id = creatureId + '-' + name
+
     const body = physicsSystem
       .GetBodyLockInterfaceNoLock()
       .TryGetBody(ragdoll.GetBodyID(idx))
-    bodies[name] = body
+    bodies[id] = body
+
+    body.GetMotionProperties().SetAngularDamping(10)
+
+    const partBody = body as JoltBody
 
     const part: Part = {
       bp: partBp,
-      body,
+      id,
+      body: partBody,
       vizRadius: 0,
       parent,
 
       torqueDir: { y: 0, p: 0, r: 0 },
       torque: { y: 0, p: 0, r: 0 },
       lambda: { y: 0, p: 0, r: 0 },
+
+      contacts: [],
     }
+
+    partBody.getPart = () => part
 
     // set radius to be used in visualizations
     switch (partBp.shape) {
@@ -429,14 +453,14 @@ export function buildRagdollFromBlueprint(
         break
     }
 
-    parts[name] = part
+    parts[id] = part
 
     if (jointBP) {
       const joint = Jolt.castObject(
         ragdoll.GetConstraint(idx - 1),
         Jolt.SixDOFConstraint
       )
-      joints[name] = joint
+      joints[id] = joint
 
       axisConfigs.forEach((config) => {
         const { joltAxis, jointAxis } = config

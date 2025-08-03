@@ -113,9 +113,9 @@ export function updateJointTorques(
 
       targetVelocity,
 
-      centerringFraction,
-      centerringStart,
-      centerringExponent,
+      centeringFraction,
+      centeringStart,
+      centeringExponent,
     } = jointBP
 
     // Get relative rotation
@@ -167,15 +167,15 @@ export function updateJointTorques(
         centeringScale = scale(
           0,
           1,
-          centerringStart,
+          centeringStart,
           1,
           Math.abs(scaledAngle),
           true
         )
         centeringScale = Math.max(0, centeringScale)
 
-        centeringScale **= centerringExponent
-        centeringScale *= centerringFraction
+        centeringScale **= centeringExponent
+        centeringScale *= centeringFraction
         // centeringScale *= 0
 
         if (scaledAngle < 0)

@@ -56,5 +56,29 @@
 
 - [x] symmetry
 
-- [x] fix centerring force to be relative to the axis center
+- [x] fix centering force to be relative to the axis center
 - [ ] contacts
+- [ ] Move data extraction from Jolt to "world", so the others only have to consume them
+
+- [ ] joint ball
+
+  - solve the collision layers
+  - from offset distance
+  - will make bodies collide
+
+- [ ] max torque setting
+
+  - root multiplier
+  - base
+  - base from to end
+  - base from others
+  - base multiplier = 1
+
+- [ ] scaled rotation in viz object
+
+- [ ] skeleton lines
+
+  - t axis line
+  - even/odd colors
+
+- [ ] swing limit reduction from roll
