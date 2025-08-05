@@ -4,11 +4,15 @@ import {
   JointAxis,
   Part,
   PartAxis,
-  JoltBody,
   RawAxis,
-  Contact,
+  RawAxisVec3,
+  UserData,
 } from './types'
-import { toPartVec3, toScaledPartVec3 } from './math'
+import {
+  setupCollisionFiltering,
+  setupContactListeners,
+} from './collision'
+import { toRawVec3 } from './math'
 
 let jolt: JoltType.JoltInterface
 export let Jolt: typeof JoltType
@@ -102,225 +106,48 @@ export function initWorld(JoltArg: typeof JoltType) {
 
   const physicsSettings = physicsSystem.GetPhysicsSettings()
   // physicsSettings.mAllowSleeping = false
-  physicsSettings.mPointVelocitySleepThreshold = 1e-4
-  physicsSettings.mTimeBeforeSleep = 10
+  // physicsSettings.mPointVelocitySleepThreshold = 1e-4
+  // physicsSettings.mTimeBeforeSleep = 10
 }
 
-const setupCollisionFiltering = function (
-  settings: JoltType.JoltSettings
-) {
-  const objectFilter = new Jolt.ObjectLayerPairFilterTable(
-    2
-  )
-  objectFilter.EnableCollision(0, 1)
-  objectFilter.EnableCollision(1, 1)
-  const bpInterface =
-    new Jolt.BroadPhaseLayerInterfaceTable(2, 2)
-  bpInterface.MapObjectToBroadPhaseLayer(
-    0,
-    new Jolt.BroadPhaseLayer(0)
-  )
-  bpInterface.MapObjectToBroadPhaseLayer(
-    1,
-    new Jolt.BroadPhaseLayer(1)
-  )
-  settings.mObjectLayerPairFilter = objectFilter
-  settings.mBroadPhaseLayerInterface = bpInterface
-  settings.mObjectVsBroadPhaseLayerFilter =
-    new Jolt.ObjectVsBroadPhaseLayerFilterTable(
-      settings.mBroadPhaseLayerInterface,
-      2,
-      settings.mObjectLayerPairFilter,
-      2
-    )
+const userDataSets: UserData[] = []
+
+export function watchBody(body: JoltType.Body): UserData {
+  const idx = userDataSets.length
+  const userData: UserData = {
+    body,
+    linearVelocity: new Jolt!.Vec3(0, 0, 0),
+    angularVelocity: new Jolt!.Vec3(0, 0, 0),
+  }
+  userDataSets.push(userData)
+  body.SetUserData(idx)
+
+  return userData
 }
 
-const setupContactListeners = function (
-  physicsSystem: JoltType.PhysicsSystem
-) {
-  // Register contact listener
-  const contactListener = new Jolt.ContactListenerJS()
-  contactListener.OnContactValidate = (
-    body1Pointer,
-    body2Pointer,
-    baseOffset,
-    collideShapeResultPointer
-  ) => {
-    const body1 = Jolt.wrapPointer(body1Pointer, Jolt.Body)
-    const body2 = Jolt.wrapPointer(body2Pointer, Jolt.Body)
-
-    const collideShapeResult = Jolt.wrapPointer(
-      collideShapeResultPointer,
-      Jolt.CollideShapeResult
-    )
-
-    // collisionLog.value +=
-    //   'OnContactValidate ' +
-    //   body1Pointer.GetID().GetIndex() +
-    //   ' ' +
-    //   body2Pointer.GetID().GetIndex() +
-    //   ' ' +
-    //   collideShapeResult.mPenetrationAxis.ToString() +
-    //   '\n'
-    return Jolt.ValidateResult_AcceptAllContactsForThisBodyPair
-  }
-  contactListener.OnContactAdded = (
-    body1Pointer,
-    body2Pointer,
-    manifoldPointer,
-    settingsPointer
-  ) => {
-    const body1 = Jolt.wrapPointer(body1Pointer, Jolt.Body)
-    const body2 = Jolt.wrapPointer(body2Pointer, Jolt.Body)
-
-    const part1 = (body1 as JoltBody).getPart?.()
-    const part2 = (body2 as JoltBody).getPart?.()
-
-    if (!part1 && !part2) return
-
-    const quat1 = body1.GetRotation()
-    const quat2 = body2.GetRotation()
-
-    const manifold = Jolt.wrapPointer(
-      manifoldPointer,
-      Jolt.ContactManifold
-    )
-
-    const pointsOn1 =
-      manifold.get_mRelativeContactPointsOn1()
-    const pointsOn2 =
-      manifold.get_mRelativeContactPointsOn2()
-
-    console.log(
-      part1?.id,
-      part2?.id,
-      manifold.get_mPenetrationDepth()
-    )
-
-    let i = 0
-    // while (true) {
-    for (let x = 0; x < 5; x++) {
-      try {
-        const pointOn1 = pointsOn1.at(i)
-        if (!pointsOn1 || !pointOn1.Length()) break
-        const pointOn2 = pointsOn2.at(i)
-        if (!pointsOn2 || !pointOn2.Length()) break
-
-        console.log('\t', i)
-        if (part1)
-          console.log(
-            // toScaledPartVec3(pointOn1, part1)
-            toScaledPartVec3(quat1.MulVec3(pointOn1), part1)
-          )
-        if (part2)
-          console.log(
-            // toScaledPartVec3(pointOn1, part2)
-            toScaledPartVec3(quat2.MulVec3(pointOn1), part2)
-              .l
-          )
-
-        // part1.contacts.push
-
-        i++
-      } finally {
-        break
-      }
-    }
-  }
-  contactListener.OnContactPersisted = (
-    body1Pointer,
-    body2Pointer,
-    manifoldPointer,
-    settingsPointer
-  ) => {
-    const body1 = Jolt.wrapPointer(body1Pointer, Jolt.Body)
-    const body2 = Jolt.wrapPointer(body2Pointer, Jolt.Body)
-
-    const part1 = (body1 as JoltBody).getPart?.()
-    const part2 = (body2 as JoltBody).getPart?.()
-
-    if (!part1 && !part2) return
-
-    const quat1 = body1.GetRotation()
-    const quat2 = body2.GetRotation()
-
-    const manifold = Jolt.wrapPointer(
-      manifoldPointer,
-      Jolt.ContactManifold
-    )
-
-    const pointsOn1 =
-      manifold.get_mRelativeContactPointsOn1()
-    const pointsOn2 =
-      manifold.get_mRelativeContactPointsOn2()
-
-    console.log(
-      '----per',
-      part1?.id,
-      part2?.id,
-      manifold.get_mPenetrationDepth()
-    )
-
-    let i = 0
-    // while (true) {
-    for (let x = 0; x < 5; x++) {
-      try {
-        const pointOn1 = pointsOn1.at(i)
-        if (!pointsOn1 || !pointOn1.Length()) break
-        const pointOn2 = pointsOn2.at(i)
-        if (!pointsOn2 || !pointOn2.Length()) break
-
-        console.log('\t', i)
-        if (part1)
-          console.log(
-            // toScaledPartVec3(pointOn1, part1)
-            toScaledPartVec3(quat1.MulVec3(pointOn1), part1)
-          )
-        if (part2)
-          console.log(
-            // toScaledPartVec3(pointOn1, part2)
-            toScaledPartVec3(quat2.MulVec3(pointOn1), part2)
-              .l
-          )
-
-        // part1.contacts.push
-
-        i++
-      } finally {
-        break
-      }
-    }
-  }
-  contactListener.OnContactRemoved = (
-    subShapePairPointer
-  ) => {
-    const subShapePair = Jolt.wrapPointer(
-      subShapePairPointer,
-      Jolt.SubShapeIDPair
-    )
-    // collisionLog.value +=
-    //   'OnContactRemoved ' +
-    //   subShapePair.GetBody1ID().GetIndex() +
-    //   ' ' +
-    //   subShapePair.GetBody2ID().GetIndex() +
-    //   '\n'
-  }
-
-  physicsSystem.SetContactListener(contactListener)
+export function getUserData(body: JoltType.Body) {
+  return userDataSets[body.GetUserData()]
 }
 
-export function createFloor(size = 2) {
+export function createBox(
+  size: RawAxisVec3,
+  position: RawAxisVec3,
+  isStatic?: boolean
+): JoltType.Body {
   const shape = new Jolt.BoxShape(
-    new Jolt.Vec3(size, 0.5, size),
+    new Jolt.Vec3(size.x, size.y, size.z),
     0.05,
     undefined
   )
+  shape.SetDensity(1000)
   const creationSettings = new Jolt.BodyCreationSettings(
     shape,
-    new Jolt.RVec3(0, -0.5, 0),
+    new Jolt.RVec3(position.x, position.y, position.z),
     new Jolt.Quat(0, 0, 0, 1),
-    Jolt.EMotionType_Static,
-    0
+    isStatic
+      ? Jolt.EMotionType_Static
+      : Jolt.EMotionType_Dynamic,
+    isStatic ? 0 : 1
   )
 
   const body = bodyInterface.CreateBody(creationSettings)
@@ -329,14 +156,48 @@ export function createFloor(size = 2) {
     body.GetID(),
     Jolt.EActivation_Activate
   )
+
+  watchBody(body)
+
   return body
 }
 
+export function createFloor(size = 2) {
+  return createBox(
+    { x: size, y: 0.5, z: size },
+    { x: 0, y: -0.5, z: 0 },
+    true
+  )
+}
+
+let t = 0
 export function updatePhysics(
-  deltaTime: number,
-  parts?: Record<string, Part>
+  parts: Record<string, Part>,
+  deltaTime: number
 ) {
   const numSteps = deltaTime > 1.0 / 55.0 ? 2 : 1
+
+  console.log('-----', t)
+
+  for (let i = 0; i < userDataSets.length; i++) {
+    const userData = userDataSets[i]
+
+    const body = userData.body
+
+    const linearVelocity = body.GetLinearVelocity()
+    userData.linearVelocity.Set(
+      linearVelocity.GetX(),
+      linearVelocity.GetY(),
+      linearVelocity.GetZ()
+    )
+
+    const angularVelocity = body.GetAngularVelocity()
+    userData.angularVelocity.Set(
+      angularVelocity.GetX(),
+      angularVelocity.GetY(),
+      angularVelocity.GetZ()
+    )
+  }
 
   // pre step
   if (parts) {
@@ -371,61 +232,6 @@ export function updatePhysics(
       }
     }
   }
-}
 
-// import Jolt from "jolt-physics-js";
-
-// TODO add effect of gravity
-
-/**
- * Estimate collision impact strength and friction force between two bodies in Jolt.
- * @param bodyA First body.
- * @param bodyB Second body.
- * @param contactNormal Normal vector at the contact point, should be normalized.
- * @returns { impactStrength: number, frictionForce: number }
- */
-export function computeCollisionImpactStrength(
-  bodyA: JoltType.Body,
-  bodyB: JoltType.Body,
-  contactNormal: JoltType.Vec3
-): { impactStrength: number; frictionForce: number } {
-  // Get velocities
-  const velA = bodyA.GetLinearVelocity()
-  const velB = bodyB.GetLinearVelocity()
-
-  // Relative velocity at contact
-  const relVel = velB.Sub(velA)
-
-  // Project relative velocity onto contact normal to get impact velocity
-  const impactVel = relVel.Dot(contactNormal)
-
-  // Get inverse masses
-  const invMassA =
-    bodyA.GetMotionProperties()?.GetInverseMass() ?? 0.0
-  const invMassB =
-    bodyB.GetMotionProperties()?.GetInverseMass() ?? 0.0
-
-  // Calculate effective mass along the contact normal
-  const effectiveMass =
-    invMassA + invMassB > 0
-      ? 1.0 / (invMassA + invMassB)
-      : 1e8
-
-  // Impact strength: normal impulse estimate
-  const impactStrength = Math.abs(effectiveMass * impactVel)
-
-  // Friction calculation
-  const frictionA = bodyA.GetFriction()
-  const frictionB = bodyB.GetFriction()
-  const combinedFriction = Math.sqrt(
-    Math.max(0, frictionA) * Math.max(0, frictionB)
-  )
-
-  // Friction force is proportional to normal impulse (Coulomb friction model)
-  const frictionForce = combinedFriction * impactStrength
-
-  return {
-    impactStrength,
-    frictionForce,
-  }
+  t++
 }

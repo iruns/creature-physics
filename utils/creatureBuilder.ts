@@ -2,6 +2,7 @@ import {
   Jolt,
   axisConfigs,
   jointAxisConfigs,
+  watchBody,
 } from './world'
 import JoltType from 'jolt-physics'
 import * as THREE from 'three'
@@ -21,7 +22,6 @@ import {
   PartBlueprintDefaults,
   PartShape,
   RootPartBlueprint,
-  JoltBody,
 } from './types'
 
 export const defaultPartBp: PartBlueprintDefaults = {
@@ -421,13 +421,14 @@ export function buildRagdollFromBlueprint(
     bodies[id] = body
 
     body.GetMotionProperties().SetAngularDamping(10)
-
-    const partBody = body as JoltBody
+    const userData = watchBody(body)
 
     const part: Part = {
       bp: partBp,
       id,
-      body: partBody,
+
+      body,
+
       vizRadius: 0,
       parent,
 
@@ -438,7 +439,7 @@ export function buildRagdollFromBlueprint(
       contacts: [],
     }
 
-    partBody.getPart = () => part
+    userData.part = part
 
     // set radius to be used in visualizations
     switch (partBp.shape) {

@@ -11,6 +11,7 @@ import {
   Part,
   PartAxis,
   PartAxisVec3,
+  RawAxisVec3,
 } from './types'
 
 // Helper to convert degrees to radians
@@ -80,6 +81,13 @@ export const toThreeVec3 = (
 ): THREE.Vector3 =>
   new THREE.Vector3(v.GetX(), v.GetY(), v.GetZ())
 
+export const toRawVec3 = (
+  v: JoltType.Vec3
+): RawAxisVec3 => ({
+  x: v.GetX(),
+  y: v.GetY(),
+  z: v.GetZ(),
+})
 export const toPartVec3 = (
   v: JoltType.Vec3
 ): PartAxisVec3 => ({

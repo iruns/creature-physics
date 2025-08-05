@@ -1,6 +1,14 @@
 import type JoltType from 'jolt-physics'
 import * as THREE from 'three'
 
+export interface UserData {
+  body: JoltType.Body
+  linearVelocity: JoltType.Vec3
+  angularVelocity: JoltType.Vec3
+  part?: Part
+  isJoint?: boolean
+}
+
 export type RawAxis = 'x' | 'y' | 'z'
 export type PartAxis = 'l' | 'w' | 't'
 export type JointAxis = 'y' | 'p' | 'r'
@@ -139,7 +147,7 @@ export interface Part {
   bp: BakedPartBlueprint
   id: string
 
-  body: JoltBody
+  body: JoltType.Body
 
   /** From size and shape that will be used to size visualizations */
   vizRadius: number
@@ -160,11 +168,6 @@ export interface Part {
 
 export type RootPart = Omit<Part, 'parent' | 'joint'>
 
-export interface JoltBody extends JoltType.Body {
-  getPart: () => Part
-  isJoint?: boolean
-}
-
 export interface BuildResult {
   creature: RootPart
   ragdoll: JoltType.Ragdoll | null
@@ -174,13 +177,12 @@ export interface BuildResult {
 }
 
 export interface Contact {
+  worldPosition: RawAxisVec3
   position: PartAxisVec3
-  localPosition: PartAxisVec3
-  scaledPosition: PartAxisVec3
 
   strength: number
   friction: number
-  otherBodyId: string
+  otherBodyId: number
 }
 
 export interface PartViz extends THREE.Mesh {

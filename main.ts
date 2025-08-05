@@ -19,6 +19,7 @@ import {
   initWorld,
   updatePhysics,
   createFloor,
+  createBox,
 } from './utils/world'
 import {
   createJointControls,
@@ -33,6 +34,15 @@ window.addEventListener('DOMContentLoaded', () => {
     const floorBody = createFloor()
     addToThreeScene(floorBody, 0x888888)
 
+    const size = 0.02
+    const box = createBox(
+      { x: size * 10, y: size, z: size },
+      { x: size * 8, y: size * 1, z: size * 8 }
+    )
+    addToThreeScene(box, 0xff8888)
+    // box.AddForce(new Jolt.Vec3(0, 80, 0))
+    box.AddTorque(new Jolt.Vec3(0, 100, 0))
+
     // Blueprint for minimal skeleton: upper arm and lower arm
     const blueprint: RootPartBlueprint = {
       id: 'h-1',
@@ -40,9 +50,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
       // position: { x: 0, y: 0.5, z: 0 },
       // size: { l: 0.18, w: 0.25, t: 0.08, r: 0 },
-      position: { x: 0, y: 0.5, z: 0 },
+      position: { x: 0, y: 0.05, z: 0 },
       size: { l: 0.1, w: 0.1, t: 0.1, r: 0 },
-      rotation: { y: 0, p: 45, r: 0 },
+      rotation: { y: 0, p: 0, r: 0 },
       //       children: [
       //         {
       //           name: 'upper-arm',
@@ -127,12 +137,16 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Animation loop
     const timeStep = 1.0 / 30.0
-    let t = 0
-    let off = false
-    setInterval(() => {
-      updatePhysics(timeStep)
+    // const timeStep = 1.0 / 30.0
+    let pStep = 0
 
-      updateJointTorques(parts)
+    let t = 0
+    setInterval(() => {
+      if (pStep) {
+        // updatePhysics({}, pStep)
+        updatePhysics(parts, pStep)
+        // updateJointTorques(parts)
+      }
 
       render(timeStep)
 
@@ -140,7 +154,26 @@ window.addEventListener('DOMContentLoaded', () => {
       //   off = true
       //   console.log(t)
       // }
-      // t++
+
+      // t += timeStep * 1000
     }, timeStep * 1000)
+
+    window.onkeydown = (event: KeyboardEvent) => {
+      switch (event.key) {
+        case '1':
+          pStep = timeStep / 10
+          break
+        case '2':
+          pStep = timeStep / 3
+          break
+        case '3':
+          pStep = timeStep
+          break
+      }
+    }
+
+    window.onkeyup = () => {
+      pStep = 0
+    }
   })
 })
