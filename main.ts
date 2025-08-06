@@ -36,12 +36,12 @@ window.addEventListener('DOMContentLoaded', () => {
 
     const size = 0.02
     const box = createBox(
-      { x: size * 10, y: size, z: size },
-      { x: size * 8, y: size * 1, z: size * 8 }
+      { x: size, y: size, z: size },
+      { x: 0, y: size * 1, z: 0 }
     )
     addToThreeScene(box, 0xff8888)
-    // box.AddForce(new Jolt.Vec3(0, 80, 0))
-    box.AddTorque(new Jolt.Vec3(0, 100, 0))
+    box.AddForce(new Jolt.Vec3(0, 80, 0))
+    // box.AddTorque(new Jolt.Vec3(0, 100, 0))
 
     // Blueprint for minimal skeleton: upper arm and lower arm
     const blueprint: RootPartBlueprint = {
@@ -50,7 +50,7 @@ window.addEventListener('DOMContentLoaded', () => {
 
       // position: { x: 0, y: 0.5, z: 0 },
       // size: { l: 0.18, w: 0.25, t: 0.08, r: 0 },
-      position: { x: 0, y: 0.05, z: 0 },
+      position: { x: 0, y: 0.2, z: 0 },
       size: { l: 0.1, w: 0.1, t: 0.1, r: 0 },
       rotation: { y: 0, p: 0, r: 0 },
       //       children: [

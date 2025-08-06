@@ -2,7 +2,13 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/Addons.js'
 import type JoltType from 'jolt-physics'
 import { Jolt } from './world'
-import { Part, PartViz, PartAxis, JointAxis } from './types'
+import {
+  Part,
+  PartViz,
+  PartAxis,
+  JointAxis,
+  Contact,
+} from './types'
 import {
   degToRad,
   exponentiate,
@@ -129,6 +135,8 @@ export function createMeshForShape(
 }
 
 export function render(deltaTime: number) {
+  const contacts: Contact[] = []
+
   for (let i = 0; i < meshes.length; i++) {
     const mesh = meshes[i]
     const body = mesh.userData.body as JoltType.Body
@@ -146,52 +154,97 @@ export function render(deltaTime: number) {
     )
     mesh.quaternion.copy(toThreeQuat(body.GetRotation()))
 
-    // if has joint, update the arrows
+    // if has joint, update the force arrows
     const partViz = mesh as PartViz
-    const { part, torque, lambda } = partViz.userData
+    const { part } = partViz.userData
     if (!part) continue
 
-    const joint = part.joint
-    if (!joint) continue
+    contacts.push(...part.contacts)
 
-    for (const key in torque) {
-      const jointAxis = key as JointAxis
-      let forceScale = -exponentiate(
-        part.torque[jointAxis],
-        0.3
-      )
-      let lambdaScale = -exponentiate(
-        part.lambda[jointAxis],
-        0.3
-      )
-
-      // flip direction for p axis (for some reason)
-      if (jointAxis === 'p') {
-        forceScale = -forceScale
-        lambdaScale = -lambdaScale
-      }
-
-      const torqueArrow = torque[
-        jointAxis
-      ] as THREE.ArrowHelper
-      torqueArrow.scale.set(
-        forceScale,
-        forceScale,
-        forceScale
-      )
-
-      const lambdaArrow = lambda[
-        jointAxis
-      ] as THREE.ArrowHelper
-      lambdaArrow.scale.set(
-        lambdaScale,
-        lambdaScale,
-        lambdaScale
-      )
-    }
+    if (part.joint) updateJointForces(partViz)
   }
+
+  // Contacts
+  updateContacts(contacts)
+
+  // Camera
   controls.update(deltaTime)
+
   renderer.render(scene, camera)
+}
+
+function updateJointForces(partViz: PartViz) {
+  const { part, torque, lambda } = partViz.userData
+
+  for (const key in torque) {
+    const jointAxis = key as JointAxis
+    let forceScale = -exponentiate(
+      part.torque[jointAxis],
+      0.3
+    )
+    let lambdaScale = -exponentiate(
+      part.lambda[jointAxis],
+      0.3
+    )
+
+    // flip direction for p axis (for some reason)
+    if (jointAxis === 'p') {
+      forceScale = -forceScale
+      lambdaScale = -lambdaScale
+    }
+
+    const torqueArrow = torque[
+      jointAxis
+    ] as THREE.ArrowHelper
+    torqueArrow.scale.set(
+      forceScale,
+      forceScale,
+      forceScale
+    )
+
+    const lambdaArrow = lambda[
+      jointAxis
+    ] as THREE.ArrowHelper
+    lambdaArrow.scale.set(
+      lambdaScale,
+      lambdaScale,
+      lambdaScale
+    )
+  }
+}
+
+const contactMeshes: THREE.Mesh[] = []
+const contactMaterial = new THREE.MeshBasicMaterial({
+  color: new THREE.Color().setRGB(1, 0.4, 0),
+  transparent: true,
+  opacity: 0.6,
+})
+function updateContacts(contacts: Contact[]) {
+  for (
+    let i = contacts.length;
+    i < contactMeshes.length;
+    i++
+  ) {
+    scene.remove(contactMeshes[i])
+  }
+  contactMeshes.length = contacts.length
+
+  for (let i = 0; i < contacts.length; i++) {
+    let contactMesh = contactMeshes[i]
+    if (!contactMesh) {
+      contactMeshes[i] = contactMesh = new THREE.Mesh(
+        new THREE.SphereGeometry(0.02, 8, 4),
+        contactMaterial
+      )
+      scene.add(contactMesh)
+    }
+    1
+    const { worldPosition, strength } = contacts[i]
+    contactMesh.position.copy(worldPosition)
+
+    const scale = strength ** 0.3
+    contactMesh.scale.set(scale, scale, scale)
+  }
 }
 
 // Create a Three.js mesh for a Jolt body
@@ -282,6 +335,7 @@ export function visualizePart(
       body,
       torque: {},
       lambda: {},
+      contacts: [],
     },
   })
   const { userData } = partViz

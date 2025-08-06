@@ -37,37 +37,16 @@ export function setupContactListeners(
 ) {
   // Register contact listener
   const contactListener = new Jolt.ContactListenerJS()
-  contactListener.OnContactValidate = (
-    body1Pointer,
-    body2Pointer,
-    baseOffset,
-    collideShapeResultPointer
-  ) => {
-    const body1 = Jolt.wrapPointer(body1Pointer, Jolt.Body)
-    const body2 = Jolt.wrapPointer(body2Pointer, Jolt.Body)
 
-    const collideShapeResult = Jolt.wrapPointer(
-      collideShapeResultPointer,
-      Jolt.CollideShapeResult
-    )
-
-    // collisionLog.value +=
-    //   'OnContactValidate ' +
-    //   body1Pointer.GetID().GetIndex() +
-    //   ' ' +
-    //   body2Pointer.GetID().GetIndex() +
-    //   ' ' +
-    //   collideShapeResult.mPenetrationAxis.ToString() +
-    //   '\n'
-    return Jolt.ValidateResult_AcceptAllContactsForThisBodyPair
-  }
+  contactListener.OnContactValidate = () =>
+    Jolt.ValidateResult_AcceptAllContactsForThisBodyPair
 
   contactListener.OnContactAdded = (
     bodyAPointer,
     bodyBPointer,
     manifoldPointer
   ) => {
-    console.log('contact')
+    // console.log('---added')
 
     processContact(
       bodyAPointer,
@@ -75,25 +54,22 @@ export function setupContactListeners(
       manifoldPointer
     )
   }
+
   contactListener.OnContactPersisted = (
     bodyAPointer,
     bodyBPointer,
     manifoldPointer
   ) => {
-    console.log('persist')
+    // console.log('---persist')
+
     processContact(
       bodyAPointer,
       bodyBPointer,
       manifoldPointer
     )
   }
-  contactListener.OnContactRemoved = (inSubShapePair) => {
-    // console.log('end', inSubShapePair)
-  }
 
-  // contactListener.OnContactAdded = processContact
-  // contactListener.OnContactPersisted = processContact
-  // contactListener.OnContactRemoved = () => undefined
+  contactListener.OnContactRemoved = () => undefined
 
   physicsSystem.SetContactListener(contactListener)
 }
@@ -218,32 +194,6 @@ function processContact(
           position: toScaledPartVec3(
             rotationB.MulVec3(pointOnB),
             partB
-          ),
-
-          strength,
-          friction,
-          otherBodyId: bodyA.GetID().GetIndex(),
-        })
-
-      if (partA)
-        partA.contacts.push({
-          worldPosition,
-          position: toScaledPartVec3(
-            rotationA.MulVec3(pointOnA),
-            partA
-          ),
-
-          strength,
-          friction,
-          otherBodyId: bodyB.GetID().GetIndex(),
-        })
-
-      if (partB)
-        console.log({
-          worldPosition,
-          position: toScaledPartVec3(
-            rotationB.MulVec3(pointOnB),
-            partB!
           ),
 
           strength,

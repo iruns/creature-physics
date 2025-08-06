@@ -195,3 +195,35 @@ export interface PartViz extends THREE.Mesh {
     lambda: Partial<JointAxisVec3<THREE.ArrowHelper>>
   }
 }
+
+// Blueprint
+//
+// Part
+// - bp
+//
+// - baked bp
+//
+// - computed
+//  - weight
+//  - baseTorque
+//
+// - state
+//  - torque
+//  - lambda
+//  - position
+//  - rotation
+//  - linearVelocity
+//  - angularVelocity
+//  - contacts
+//
+// - control
+//  - direction
+//  - maxTorque, minTorque
+//  - targetSpeed
+//
+// - viz
+//  - torque
+//  - lambda
+//
+// Scene
+// - contacts

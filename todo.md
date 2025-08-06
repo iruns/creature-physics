@@ -57,11 +57,12 @@
 - [x] symmetry
 
 - [x] fix centering force to be relative to the axis center
-- [ ] contacts
+- [x] contacts
   - body velocity after collision detection is unreliable. Save all body linear and angular velocities outside of Jolt, and use them
     - save in array of userData. Save idx by body.SetUserData(idx)
     - part and isJoint are optional
-- [ ] Move data extraction from Jolt to "world", so the others only have to consume them
+- [ ] tidy up the types
+- [ ] move data extraction from Jolt to "world", so the others only have to consume them
 
 - [ ] max torque setting
 

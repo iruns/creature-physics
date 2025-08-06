@@ -11,7 +11,7 @@ import {
 import {
   setupCollisionFiltering,
   setupContactListeners,
-} from './collision'
+} from './contacts'
 import { toRawVec3 } from './math'
 
 let jolt: JoltType.JoltInterface
