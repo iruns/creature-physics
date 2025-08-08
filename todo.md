@@ -61,8 +61,9 @@
   - body velocity after collision detection is unreliable. Save all body linear and angular velocities outside of Jolt, and use them
     - save in array of userData. Save idx by body.SetUserData(idx)
     - part and isJoint are optional
-- [ ] tidy up the types
-- [ ] move data extraction from Jolt to "world", so the others only have to consume them
+- [x] tidy up the types
+
+  - [x] move data extraction from Jolt to "world", so the others only have to consume them
 
 - [ ] max torque setting
 

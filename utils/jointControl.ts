@@ -56,7 +56,7 @@ export function createJointControls(
       axisDiv.style.gap = '8px'
       axisDiv.style.width = '100%'
 
-      const torque = part.torqueDir
+      const { torqueDirection } = joint
 
       // Left button
       const leftButton = axisDiv.appendChild(
@@ -66,9 +66,9 @@ export function createJointControls(
       leftButton.style.flex = '0 0 auto'
 
       leftButton.onmousedown = () =>
-        (torque[jointAxis] = -1)
+        (torqueDirection[jointAxis] = -1)
       leftButton.onmouseup = leftButton.onmouseleave = () =>
-        (torque[jointAxis] = 0)
+        (torqueDirection[jointAxis] = 0)
 
       // Axis label (centered)
       const labelDiv = axisDiv.appendChild(
@@ -87,9 +87,9 @@ export function createJointControls(
       rightButton.style.flex = '0 0 auto'
 
       rightButton.onmousedown = () =>
-        (torque[jointAxis] = 1)
+        (torqueDirection[jointAxis] = 1)
       rightButton.onmouseup = rightButton.onmouseleave =
-        () => (torque[jointAxis] = 0)
+        () => (torqueDirection[jointAxis] = 0)
     })
   }
 }
@@ -100,10 +100,16 @@ export function updateJointTorques(
   const velocity = new THREE.Vector3()
 
   for (const name in parts) {
-    const { joint, torqueDir, torque, lambda, bp } =
-      parts[name]
+    const { joint, bp } = parts[name]
 
     if (!joint) continue
+
+    const {
+      torqueDirection,
+      torque,
+      lambda,
+      joint: joltJoint,
+    } = joint
 
     const jointBP = bp.joint!
     const {
@@ -120,7 +126,7 @@ export function updateJointTorques(
 
     // Get relative rotation
     const relativeRotationQuat =
-      joint.GetRotationInConstraintSpace()
+      joltJoint.GetRotationInConstraintSpace()
     const relativeRotation =
       new THREE.Euler().setFromQuaternion(
         toThreeQuat(relativeRotationQuat),
@@ -134,7 +140,8 @@ export function updateJointTorques(
     // Get joint limits (in degrees)
     const limits = jointBP.limits
 
-    const lambdaValues = joint.GetTotalLambdaMotorRotation()
+    const lambdaValues =
+      joltJoint.GetTotalLambdaMotorRotation()
     lambda.y = -lambdaValues.GetY()
     lambda.p = -lambdaValues.GetZ()
     lambda.r = -lambdaValues.GetX()
@@ -148,9 +155,9 @@ export function updateJointTorques(
       const limit = limits[jointAxis] ?? 0
       if (!limit) continue
 
-      const axisDir = torqueDir[jointAxis]
+      const axisDir = torqueDirection[jointAxis]
 
-      const settings = joint.GetMotorSettings(joltAxis)
+      const settings = joltJoint.GetMotorSettings(joltAxis)
 
       const maxTorqueFloor = maxTorque * torqueFloor
       settings.set_mMaxTorqueLimit(maxTorqueFloor)
@@ -205,13 +212,13 @@ export function updateJointTorques(
     }
 
     // Apply the torque to the joint
-    if (!joint.IsActive())
-      bodyInterface.ActivateConstraint(joint)
+    if (!joltJoint.IsActive())
+      bodyInterface.ActivateConstraint(joltJoint)
 
     const velocityVec3 = new Jolt.Vec3(
       ...velocity.toArray()
     )
-    joint.SetTargetAngularVelocityCS(velocityVec3)
+    joltJoint.SetTargetAngularVelocityCS(velocityVec3)
 
     Jolt.destroy(velocityVec3)
   }

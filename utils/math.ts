@@ -77,9 +77,14 @@ export const jointToThreeAxis = (
 }
 
 export const toThreeVec3 = (
-  v: JoltType.Vec3
-): THREE.Vector3 =>
-  new THREE.Vector3(v.GetX(), v.GetY(), v.GetZ())
+  v: JoltType.Vec3 | JoltType.RVec3,
+  to?: THREE.Vector3
+): THREE.Vector3 => {
+  if (!to)
+    return new THREE.Vector3(v.GetX(), v.GetY(), v.GetZ())
+  to.set(v.GetX(), v.GetY(), v.GetZ())
+  return to
+}
 
 export const toRawVec3 = (
   v: JoltType.Vec3
@@ -119,19 +124,37 @@ export const toJoltVec3 = (
   v: THREE.Vector3
 ): JoltType.Vec3 => new Jolt.Vec3(v.x, v.y, v.z)
 
+export function cloneJoltVec3<
+  T extends JoltType.Vec3 | JoltType.RVec3
+>(v: T): T {
+  if ((v as JoltType.RVec3).MulRVec3)
+    return new Jolt.RVec3(v.GetX(), v.GetY(), v.GetZ()) as T
+  return new Jolt.Vec3(v.GetX(), v.GetY(), v.GetZ()) as T
+}
+// Quat
 export const toThreeQuat = (
-  q: JoltType.Quat
-): THREE.Quaternion =>
-  new THREE.Quaternion(
-    q.GetX(),
-    q.GetY(),
-    q.GetZ(),
-    q.GetW()
-  )
+  q: JoltType.Quat,
+  to?: THREE.Quaternion
+): THREE.Quaternion => {
+  if (!to)
+    return new THREE.Quaternion(
+      q.GetX(),
+      q.GetY(),
+      q.GetZ(),
+      q.GetW()
+    )
+  to.set(q.GetX(), q.GetY(), q.GetZ(), q.GetW())
+  return to
+}
 
 export const toJoltQuat = (
   q: THREE.Quaternion
 ): JoltType.Quat => new Jolt.Quat(q.x, q.y, q.z, q.w)
+
+export const cloneJoltQuat = (
+  q: JoltType.Quat
+): JoltType.Quat =>
+  new Jolt.Quat(q.GetX(), q.GetY(), q.GetZ(), q.GetW())
 
 export function exponentiate(
   base: number,

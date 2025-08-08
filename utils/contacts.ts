@@ -1,7 +1,7 @@
 import type JoltType from 'jolt-physics'
 import { getUserData, Jolt } from './world'
 import { toRawVec3, toScaledPartVec3 } from './math'
-import { UserData } from './types'
+import { Part, PhysicsUserObj } from './types'
 
 export function setupCollisionFiltering(
   settings: JoltType.JoltSettings
@@ -85,11 +85,11 @@ function processContact(
   const userDataA = getUserData(bodyA)
   const userDataB = getUserData(bodyB)
 
-  const partA = userDataA?.part
-  const partB = userDataB?.part
+  const partA = userDataA?.obj3d as Part
+  const partB = userDataB?.obj3d as Part
 
   // if neither are Part, skip
-  if (!partA && !partB) return
+  if (!partA?.id && !partB?.id) return
 
   const manifold = Jolt.wrapPointer(
     manifoldPointer,
@@ -115,11 +115,10 @@ function processContact(
   const rotationA = bodyA.GetRotation()
   const rotationB = bodyB.GetRotation()
 
-  // Get inverse masses
-  const inverseMassA =
-    bodyA.GetMotionProperties()?.GetInverseMass() ?? 0.0
-  const inverseMassB =
-    bodyB.GetMotionProperties()?.GetInverseMass() ?? 0.0
+  const { inverseMass: inverseMassA, contacts: contactsA } =
+    partA.physics
+  const { inverseMass: inverseMassB, contacts: contactsB } =
+    partB.physics
 
   // Calculate effective mass along the contact normal
   const effectiveMass =
@@ -128,6 +127,7 @@ function processContact(
       : 1e8
 
   // Friction calculation
+  // TODO scale friction effect with normal angle
   const frictionA = bodyA.GetFriction()
   const frictionB = bodyB.GetFriction()
   const combinedFriction = Math.sqrt(
@@ -175,8 +175,8 @@ function processContact(
       // Friction force is proportional to normal impulse (Coulomb friction model)
       const friction = combinedFriction * strength
 
-      if (partA)
-        partA.contacts.push({
+      if (partA.id) {
+        contactsA.push({
           worldPosition,
           position: toScaledPartVec3(
             rotationA.MulVec3(pointOnA),
@@ -187,9 +187,10 @@ function processContact(
           friction,
           otherBodyId: bodyB.GetID().GetIndex(),
         })
+      }
 
-      if (partB)
-        partB.contacts.push({
+      if (partB.id)
+        contactsB.push({
           worldPosition,
           position: toScaledPartVec3(
             rotationB.MulVec3(pointOnB),
@@ -202,6 +203,8 @@ function processContact(
         })
 
       i++
+    } catch (e) {
+      console.log(e)
     } finally {
       break
     }

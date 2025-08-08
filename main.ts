@@ -1,11 +1,5 @@
 import initJolt from 'jolt-physics'
-import {
-  Part,
-  PartBlueprint,
-  PartShape,
-  PartViz,
-  RootPartBlueprint,
-} from './utils/types'
+import { Part, RootPartBlueprint } from './utils/types'
 import { buildRagdollFromBlueprint } from './utils/creatureBuilder'
 import {
   addToThreeScene,
@@ -31,17 +25,17 @@ window.addEventListener('DOMContentLoaded', () => {
     initRenderer()
     initWorld(Jolt)
 
-    const floorBody = createFloor()
-    addToThreeScene(floorBody, 0x888888)
+    const floorObj = createFloor()
+    addToThreeScene(floorObj, 0x888888)
 
-    const size = 0.02
-    const box = createBox(
-      { x: size, y: size, z: size },
-      { x: 0, y: size * 1, z: 0 }
-    )
-    addToThreeScene(box, 0xff8888)
-    box.AddForce(new Jolt.Vec3(0, 80, 0))
-    // box.AddTorque(new Jolt.Vec3(0, 100, 0))
+    // const size = 0.02
+    // const box = createBox(
+    //   { x: size, y: size, z: size },
+    //   { x: 0, y: size * 1, z: 0 }
+    // )
+    // addToThreeScene({ physics: box }, 0xff8888)
+    // box.body.AddForce(new Jolt.Vec3(0, 80, 0))
+    // // box.body.AddTorque(new Jolt.Vec3(0, 100, 0))
 
     // Blueprint for minimal skeleton: upper arm and lower arm
     const blueprint: RootPartBlueprint = {
@@ -109,25 +103,18 @@ window.addEventListener('DOMContentLoaded', () => {
     createJointControls(parts)
 
     // Recursively add bodies to Three.js scene using blueprint and bodies map
-    function toInterface(
-      part: Part,
-      parentPartViz?: PartViz
-    ) {
+    function toInterface(part: Part) {
       const { children } = part
 
       // If this part has a joint, visualize its limits at the joint anchor
-      const partViz = visualizePart(part, parentPartViz)
+      const vizObj = visualizePart(part)
 
       if (children) {
-        partViz.userData.children = {}
         for (const name in children)
-          partViz.userData.children[name] = toInterface(
-            children[name],
-            partViz
-          )
+          toInterface(children[name])
       }
 
-      return partViz
+      return vizObj
     }
 
     const creatureViz = toInterface(creature)
@@ -137,8 +124,9 @@ window.addEventListener('DOMContentLoaded', () => {
 
     // Animation loop
     const timeStep = 1.0 / 30.0
-    // const timeStep = 1.0 / 30.0
+
     let pStep = 0
+    // pStep = timeStep
 
     let t = 0
     setInterval(() => {

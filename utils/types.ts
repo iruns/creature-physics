@@ -1,14 +1,6 @@
 import type JoltType from 'jolt-physics'
 import * as THREE from 'three'
 
-export interface UserData {
-  body: JoltType.Body
-  linearVelocity: JoltType.Vec3
-  angularVelocity: JoltType.Vec3
-  part?: Part
-  isJoint?: boolean
-}
-
 export type RawAxis = 'x' | 'y' | 'z'
 export type PartAxis = 'l' | 'w' | 't'
 export type JointAxis = 'y' | 'p' | 'r'
@@ -142,28 +134,38 @@ export type BakedJointBlueprint = JointBlueprint &
     twistAxis: THREE.Vector3
   }
 
+export interface Obj3D {
+  physics: PhysicsUserObj
+  viz?: VizUserObj
+}
+
 // Resulting creature
-export interface Part {
+export interface Part extends Obj3D {
   bp: BakedPartBlueprint
   id: string
 
-  body: JoltType.Body
-
-  /** From size and shape that will be used to size visualizations */
-  vizRadius: number
   children?: Record<string, Part>
   // Only for non-root parts
   parent?: Part
 
-  joint?: JoltType.SixDOFConstraint
-  torqueDir: JointAxisVec3
-  torque: JointAxisVec3
+  joint?: Joint
+}
 
+export interface Joint {
+  bp: BakedJointBlueprint
+
+  part: Part
+  joint: JoltType.SixDOFConstraint
+
+  baseTorque: number
+  minTorque: number
+  maxTorque: number
+
+  scaledRotation: JointAxisVec3
+  torqueDirection: JointAxisVec3<-1 | 0 | 1>
+  torque: JointAxisVec3
   /** Lambda force of the motor to the target velocity */
   lambda: JointAxisVec3
-  // scaledRotation: JointAxisVec3
-
-  contacts: Contact[]
 }
 
 export type RootPart = Omit<Part, 'parent' | 'joint'>
@@ -185,45 +187,72 @@ export interface Contact {
   otherBodyId: number
 }
 
-export interface PartViz extends THREE.Mesh {
-  userData: {
-    parent?: PartViz
-    children?: Record<string, PartViz>
-    body: JoltType.Body
-    part: Part
-    torque: Partial<JointAxisVec3<THREE.ArrowHelper>>
-    lambda: Partial<JointAxisVec3<THREE.ArrowHelper>>
-  }
+export interface PhysicsUserObj {
+  body: JoltType.Body
+  obj3d: Obj3D
+  inverseMass: number
+
+  // TODO check if this can be changed to THREE or raw vec3s
+  position: JoltType.RVec3
+  rotation: JoltType.Quat
+  linearVelocity: JoltType.Vec3
+  angularVelocity: JoltType.Vec3
+
+  contacts: Contact[]
+}
+
+export interface VizUserObj {
+  mesh: THREE.Mesh
+  obj3d: Obj3D
+
+  /** From size and shape that will be used to size visualizations */
+  vizRadius: number
+  axes?: THREE.AxesHelper
+  torque?: Partial<JointAxisVec3<THREE.ArrowHelper>>
+  lambda?: Partial<JointAxisVec3<THREE.ArrowHelper>>
 }
 
 // Blueprint
 //
 // Part
 // - bp
-//
 // - baked bp
 //
-// - computed
-//  - weight
-//  - baseTorque
+// - physics: JoltUserData
+// - viz: ThreeUserData
 //
-// - state
-//  - torque
-//  - lambda
-//  - position
-//  - rotation
-//  - linearVelocity
-//  - angularVelocity
-//  - contacts
+// - joint: Joint
+//   - bp
+//   - baked bp
 //
-// - control
-//  - direction
-//  - maxTorque, minTorque
-//  - targetSpeed
+//   - part
+//   - joint
 //
-// - viz
-//  - torque
-//  - lambda
+//   - baseTorque
+//   - minTorque, maxTorque
+//
+//   - scaledRotation
+//   - torqueDirection
+//   - torque
+//   - lambda
 //
 // Scene
 // - contacts
+//
+// physics: JoltUserData
+// - body
+// - part?
+// - weight
+//
+// - position
+// - rotation
+// - linearVelocity
+// - angularVelocity
+//
+// - contacts
+//
+// viz: ThreeUserData
+// - mesh
+// - vizRadius
+// - torque
+// - lambda

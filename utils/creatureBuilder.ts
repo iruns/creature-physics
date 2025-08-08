@@ -2,7 +2,7 @@ import {
   Jolt,
   axisConfigs,
   jointAxisConfigs,
-  watchBody,
+  wrapBody,
 } from './world'
 import JoltType from 'jolt-physics'
 import * as THREE from 'three'
@@ -421,38 +421,13 @@ export function buildRagdollFromBlueprint(
     bodies[id] = body
 
     body.GetMotionProperties().SetAngularDamping(10)
-    const userData = watchBody(body)
 
-    const part: Part = {
+    const obj3d = wrapBody(body)
+    const part: Part = Object.assign(obj3d, {
       bp: partBp,
       id,
-
-      body,
-
-      vizRadius: 0,
       parent,
-
-      torqueDir: { y: 0, p: 0, r: 0 },
-      torque: { y: 0, p: 0, r: 0 },
-      lambda: { y: 0, p: 0, r: 0 },
-
-      contacts: [],
-    }
-
-    userData.part = part
-
-    // set radius to be used in visualizations
-    switch (partBp.shape) {
-      case PartShape.Sphere:
-      case PartShape.Cylinder:
-      case PartShape.Capsule:
-        part.vizRadius = size.w ?? size.l
-        break
-      default:
-        part.vizRadius =
-          Math.max(size.w ?? 0, size.t ?? 0) ?? size.l
-        break
-    }
+    })
 
     parts[id] = part
 
@@ -473,7 +448,21 @@ export function buildRagdollFromBlueprint(
         )
       })
 
-      part.joint = joint
+      part.joint = {
+        bp: jointBP,
+
+        part,
+        joint,
+
+        baseTorque: 0,
+        minTorque: 0,
+        maxTorque: 0,
+
+        scaledRotation: { y: 0, p: 0, r: 0 },
+        torqueDirection: { y: 0, p: 0, r: 0 },
+        torque: { y: 0, p: 0, r: 0 },
+        lambda: { y: 0, p: 0, r: 0 },
+      }
     }
 
     if (childrenBps) {

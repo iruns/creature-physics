@@ -6,13 +6,18 @@ import {
   PartAxis,
   RawAxis,
   RawAxisVec3,
-  UserData,
+  PhysicsUserObj,
+  Obj3D,
 } from './types'
 import {
   setupCollisionFiltering,
   setupContactListeners,
 } from './contacts'
-import { toRawVec3 } from './math'
+import {
+  cloneJoltQuat,
+  cloneJoltVec3,
+  toRawVec3,
+} from './math'
 
 let jolt: JoltType.JoltInterface
 export let Jolt: typeof JoltType
@@ -110,19 +115,35 @@ export function initWorld(JoltArg: typeof JoltType) {
   // physicsSettings.mTimeBeforeSleep = 10
 }
 
-const userDataSets: UserData[] = []
+const userDataSets: PhysicsUserObj[] = []
 
-export function watchBody(body: JoltType.Body): UserData {
+export function wrapBody(body: JoltType.Body): Obj3D {
   const idx = userDataSets.length
-  const userData: UserData = {
+
+  const obj3d = {} as Obj3D
+  const userData: PhysicsUserObj = {
     body,
-    linearVelocity: new Jolt!.Vec3(0, 0, 0),
-    angularVelocity: new Jolt!.Vec3(0, 0, 0),
+    obj3d,
+    inverseMass: body
+      .GetMotionProperties()
+      .GetInverseMass(),
+
+    position: cloneJoltVec3(body.GetPosition()),
+    rotation: cloneJoltQuat(body.GetRotation()),
+    linearVelocity: cloneJoltVec3(body.GetLinearVelocity()),
+    angularVelocity: cloneJoltVec3(
+      body.GetAngularVelocity()
+    ),
+
+    contacts: [],
   }
+
+  obj3d.physics = userData
+
   userDataSets.push(userData)
   body.SetUserData(idx)
 
-  return userData
+  return obj3d
 }
 
 export function getUserData(body: JoltType.Body) {
@@ -133,7 +154,7 @@ export function createBox(
   size: RawAxisVec3,
   position: RawAxisVec3,
   isStatic?: boolean
-): JoltType.Body {
+): Obj3D {
   const shape = new Jolt.BoxShape(
     new Jolt.Vec3(size.x, size.y, size.z),
     0.05,
@@ -157,12 +178,12 @@ export function createBox(
     Jolt.EActivation_Activate
   )
 
-  watchBody(body)
+  const physicsObj = wrapBody(body)
 
-  return body
+  return physicsObj
 }
 
-export function createFloor(size = 2) {
+export function createFloor(size = 2): Obj3D {
   return createBox(
     { x: size, y: 0.5, z: size },
     { x: 0, y: -0.5, z: 0 },
@@ -184,6 +205,21 @@ export function updatePhysics(
 
     const body = userData.body
 
+    const position = body.GetPosition()
+    userData.position.Set(
+      position.GetX(),
+      position.GetY(),
+      position.GetZ()
+    )
+
+    const rotation = body.GetRotation()
+    userData.rotation.Set(
+      rotation.GetX(),
+      rotation.GetY(),
+      rotation.GetZ(),
+      rotation.GetW()
+    )
+
     const linearVelocity = body.GetLinearVelocity()
     userData.linearVelocity.Set(
       linearVelocity.GetX(),
@@ -193,9 +229,9 @@ export function updatePhysics(
 
     const angularVelocity = body.GetAngularVelocity()
     userData.angularVelocity.Set(
-      angularVelocity.GetX(),
-      angularVelocity.GetY(),
-      angularVelocity.GetZ()
+      rotation.GetX(),
+      rotation.GetY(),
+      rotation.GetZ()
     )
   }
 
@@ -203,7 +239,10 @@ export function updatePhysics(
   if (parts) {
     for (const id in parts) {
       const part = parts[id]
-      const { joint, contacts } = part
+      const {
+        joint,
+        physics: { contacts },
+      } = part
 
       // joint
       if (joint) {
@@ -223,7 +262,10 @@ export function updatePhysics(
   if (parts) {
     for (const id in parts) {
       const part = parts[id]
-      const { joint, contacts } = part
+      const {
+        joint,
+        physics: { contacts },
+      } = part
 
       // joint
       if (joint) {
