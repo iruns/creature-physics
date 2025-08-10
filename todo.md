@@ -80,7 +80,7 @@
   - enable joint mirroring directions
   - record scaled angle
 
-- [ ] move functions to Part and Joint classes
+- [x] move functions to Creature and Part classes
 
 - [ ] convert to package
 

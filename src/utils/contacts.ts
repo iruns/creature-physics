@@ -1,7 +1,7 @@
 import type JoltType from 'jolt-physics'
 import { getUserData, Jolt } from './world'
-import { toRawVec3, toScaledPartVec3 } from './math'
-import { Part, PhysicsUserObj } from './types'
+import { toRawVec3, toScaledPartVec3 } from './vector'
+import { IPart } from '../@types'
 
 export function setupCollisionFiltering(
   settings: JoltType.JoltSettings
@@ -85,8 +85,8 @@ function processContact(
   const userDataA = getUserData(bodyA)
   const userDataB = getUserData(bodyB)
 
-  const partA = userDataA?.obj3d as Part
-  const partB = userDataB?.obj3d as Part
+  const partA = userDataA?.obj3d as IPart
+  const partB = userDataB?.obj3d as IPart
 
   // if neither are Part, skip
   if (!partA?.id && !partB?.id) return
@@ -116,9 +116,9 @@ function processContact(
   const rotationB = bodyB.GetRotation()
 
   const { inverseMass: inverseMassA, contacts: contactsA } =
-    partA.physics
+    partA.physicsObj
   const { inverseMass: inverseMassB, contacts: contactsB } =
-    partB.physics
+    partB.physicsObj
 
   // Calculate effective mass along the contact normal
   const effectiveMass =

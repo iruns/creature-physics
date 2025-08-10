@@ -1,25 +1,22 @@
 import initJolt from 'jolt-physics'
 import blueprint from './blueprints/simpleHumanTop'
-import { Part } from './utils/types'
-import { buildCreature } from './utils/creatureBuilder'
+import { IPart } from './src/@types'
 import {
   addToThreeScene,
   camera,
   initRenderer,
   render,
   visualizePart,
-} from './utils/visualization'
+} from './src/utils/visualization'
 import {
   physicsSystem,
   initWorld,
   updatePhysics,
   createFloor,
   createBox,
-} from './utils/world'
-import {
-  createJointControls,
-  updateJointTorques,
-} from './utils/jointControl'
+} from './src/utils/world'
+import { createJointControls } from './src/utils/jointControl'
+import Creature from './src/Creature'
 
 window.addEventListener('DOMContentLoaded', () => {
   initJolt().then(function (Jolt) {
@@ -35,26 +32,24 @@ window.addEventListener('DOMContentLoaded', () => {
       { x: 1, y: size * 1, z: 0 }
     )
     addToThreeScene(box, 0xff8888)
-    // box.physics.body.AddForce(new Jolt.Vec3(0, 80, 0))
-    // box.physics.body.AddTorque(new Jolt.Vec3(100, 0, 0))
+    // box.physicsObj.body.AddForce(new Jolt.Vec3(0, 80, 0))
+    // box.physicsObj.body.AddTorque(new Jolt.Vec3(100, 0, 0))
 
     // Use the blueprint utility
     blueprint.density = 0
-    const { creature, ragdoll, parts } = buildCreature({
-      id: 'human',
+    const creature = new Creature({
       position: { x: 0, y: 0.2, z: 0 },
       rotation: { y: 0, p: 0, r: 0 },
       blueprint,
       physicsSystem,
     })
-
-    if (!ragdoll) return
+    const { parts } = creature
 
     // Add joint motor sliders UI
     createJointControls(parts)
 
     // Recursively add bodies to Three.js scene using blueprint and bodies map
-    function toInterface(part: Part) {
+    function toInterface(part: IPart) {
       const { children } = part
 
       // If this part has a joint, visualize its limits at the joint anchor
@@ -68,7 +63,7 @@ window.addEventListener('DOMContentLoaded', () => {
       return vizObj
     }
 
-    const creatureViz = toInterface(creature)
+    toInterface(creature.root)
 
     camera.position.z = 4
     camera.position.y = 1.5
@@ -82,8 +77,9 @@ window.addEventListener('DOMContentLoaded', () => {
     let t = 0
     setInterval(() => {
       if (pStep) {
+        // updatePhysics({}, pStep)
         updatePhysics(parts, pStep)
-        updateJointTorques(parts)
+        // updateJointTorques(parts)
       }
 
       render(timeStep)

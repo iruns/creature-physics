@@ -3,23 +3,22 @@ import { OrbitControls } from 'three/examples/jsm/Addons.js'
 import type JoltType from 'jolt-physics'
 import { Jolt } from './world'
 import {
-  Part,
+  IPart,
   PartAxis,
   JointAxis,
   Contact,
   PartShape,
   VizUserObj,
-  Obj3D,
-  Joint,
+  IObj3D,
+  IJoint,
   JointAxisVec3,
-} from './types'
+} from '../@types'
+import { degToRad, exponentiate } from './math'
 import {
-  degToRad,
-  exponentiate,
   partToThreeAxis,
-  toThreeQuat,
-  toThreeVec3,
-} from './math'
+  joltToThreeVec3,
+  joltToThreeQuat,
+} from './vector'
 
 export let container: HTMLElement
 export let scene: THREE.Scene
@@ -82,6 +81,7 @@ export function initRenderer() {
 
   // Restore camera state if present
   const saved = localStorage.getItem('cameraState')
+  // const saved = {}
   if (saved) {
     try {
       const { position, target, zoom } = JSON.parse(saved)
@@ -125,7 +125,7 @@ function onWindowResize() {
 
 // Add
 
-export function visualizePart(part: Part): VizUserObj {
+export function visualizePart(part: IPart): VizUserObj {
   const {
     bp: { size, shape, color, joint: jointBp },
   } = part
@@ -177,7 +177,7 @@ export function visualizePart(part: Part): VizUserObj {
 
   const limitRadius = vizRadius * 1
 
-  const parentMest = part.parent?.viz?.mesh
+  const parentMesh = part.parent?.vizObj?.mesh
 
   // if y and/or p
   if (y || p) {
@@ -267,7 +267,8 @@ export function visualizePart(part: Part): VizUserObj {
 
     swingMesh.position.copy(jointBp.parentOffset.baked)
     swingMesh.quaternion.copy(jointBp.rotation)
-    parentMest!.add(swingMesh)
+
+    parentMesh!.add(swingMesh)
   }
 
   // if r
@@ -308,7 +309,7 @@ export function visualizePart(part: Part): VizUserObj {
     twistArc.position.copy(jointBp.parentOffset.baked)
     twistArc.quaternion.copy(jointBp.rotation)
 
-    parentMest!.add(twistArc)
+    parentMesh!.add(twistArc)
   }
 
   // forces & lambda
@@ -321,9 +322,10 @@ export function visualizePart(part: Part): VizUserObj {
         axis === 'y' ? 'w' : axis === 'p' ? 't' : 't'
       )
       const forceOrigin = partToThreeAxis(
-        axis === 'y' ? 'l' : axis === 'p' ? 'l' : 'w',
-        limitRadius * 0.4
-      ).add(jointBp.childOffset.baked)
+        axis === 'y' ? 'l' : axis === 'p' ? 'l' : 'w'
+      )
+        .multiplyScalar(limitRadius * 0.4)
+        .add(jointBp.childOffset.baked)
 
       const forceArrow = (torque[axis] =
         new THREE.ArrowHelper(
@@ -337,9 +339,10 @@ export function visualizePart(part: Part): VizUserObj {
       forceArrow.scale.set(0, 0, 0)
 
       const lambdaOrigin = partToThreeAxis(
-        axis === 'y' ? 'l' : axis === 'p' ? 'l' : 'w',
-        limitRadius * 0.2
-      ).add(jointBp.childOffset.baked)
+        axis === 'y' ? 'l' : axis === 'p' ? 'l' : 'w'
+      )
+        .multiplyScalar(limitRadius * 0.2)
+        .add(jointBp.childOffset.baked)
       const lambdaArrow = (lambda[axis] =
         new THREE.ArrowHelper(
           direction,
@@ -358,11 +361,11 @@ export function visualizePart(part: Part): VizUserObj {
 
 // Add a Jolt body to the world scene and dynamicObjects
 export function addToThreeScene(
-  obj3d: Obj3D,
+  obj3d: IObj3D,
   color: number,
   vizRadius = 0
 ): VizUserObj {
-  const { body } = obj3d.physics
+  const { body } = obj3d.physicsObj
   const mesh = getThreeMeshForBody(body, color)
 
   mesh.userData.body = body
@@ -377,7 +380,7 @@ export function addToThreeScene(
   }
 
   threeObjs.push(threeObj)
-  obj3d.viz = threeObj
+  obj3d.vizObj = threeObj
 
   return threeObj
 }
@@ -453,17 +456,17 @@ export function render(deltaTime: number) {
 
   for (let i = 0; i < threeObjs.length; i++) {
     const { mesh, obj3d } = threeObjs[i]
-    const { physics } = obj3d
+    const { physicsObj } = obj3d
 
-    toThreeVec3(physics.position, mesh.position)
-    toThreeQuat(physics.rotation, mesh.quaternion)
+    joltToThreeVec3(physicsObj.position, mesh.position)
+    joltToThreeQuat(physicsObj.rotation, mesh.quaternion)
 
-    contacts.push(...physics.contacts)
+    contacts.push(...physicsObj.contacts)
 
     // if has joint, update the force arrows
-    const { joint, viz } = obj3d as Part
-    if (viz?.torque && viz?.lambda && joint)
-      updateJointForces(joint, viz.torque, viz.lambda)
+    const { joint, vizObj } = obj3d as IPart
+    if (vizObj?.torque && vizObj?.lambda && joint)
+      updateJointForces(joint, vizObj.torque, vizObj.lambda)
   }
 
   // Contacts
@@ -476,7 +479,7 @@ export function render(deltaTime: number) {
 }
 
 function updateJointForces(
-  joint: Joint,
+  joint: IJoint,
   torque: Partial<JointAxisVec3<THREE.ArrowHelper>>,
   lambda: Partial<JointAxisVec3<THREE.ArrowHelper>>
 ) {

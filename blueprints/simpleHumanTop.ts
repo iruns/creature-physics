@@ -1,11 +1,11 @@
-import { PartBlueprint } from '../utils/types'
+import { PartBlueprint } from '../src/@types'
 
 const blueprint: PartBlueprint = {
-  name: 'chest',
+  id: 'chest',
   size: { l: 0.2, w: 0.3, t: 0.08 },
   children: [
     {
-      name: 'shoulder',
+      id: 'shoulder',
       symmetrical: true,
 
       size: { l: 0.11, w: 0.01, t: 0.08 },
@@ -22,7 +22,7 @@ const blueprint: PartBlueprint = {
       },
       children: [
         {
-          name: 'upper-arm',
+          id: 'upper_arm',
 
           size: { l: 0.22, w: 0.03, t: 0.05 },
           joint: {
@@ -38,7 +38,7 @@ const blueprint: PartBlueprint = {
           },
           children: [
             {
-              name: 'lower-arm',
+              id: 'lower_arm',
               size: { l: 0.22, w: 0.04, t: 0.02 },
               joint: {
                 parentOffset: { from: { l: 1 } },
@@ -49,7 +49,7 @@ const blueprint: PartBlueprint = {
               },
               children: [
                 {
-                  name: 'hand',
+                  id: 'hand',
                   size: { l: 0.05, w: 0.04, t: 0.02 },
                   joint: {
                     parentOffset: { from: { l: 1 } },

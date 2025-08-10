@@ -2,22 +2,18 @@ import type JoltType from 'jolt-physics'
 import {
   AxisConfig,
   JointAxis,
-  Part,
+  IPart,
   PartAxis,
   RawAxis,
   RawAxisVec3,
   PhysicsUserObj,
-  Obj3D,
-} from './types'
+  IObj3D,
+} from '../@types'
 import {
   setupCollisionFiltering,
   setupContactListeners,
 } from './contacts'
-import {
-  cloneJoltQuat,
-  cloneJoltVec3,
-  toRawVec3,
-} from './math'
+import { Obj3d } from '../Obj3d'
 
 let jolt: JoltType.JoltInterface
 export let Jolt: typeof JoltType
@@ -107,7 +103,7 @@ export function initWorld(JoltArg: typeof JoltType) {
 
   setupContactListeners(physicsSystem)
 
-  physicsSystem.SetGravity(new Jolt.Vec3(0, 0, 0))
+  // physicsSystem.SetGravity(new Jolt.Vec3(0, 0, 0))
 
   const physicsSettings = physicsSystem.GetPhysicsSettings()
   // physicsSettings.mAllowSleeping = false
@@ -117,35 +113,10 @@ export function initWorld(JoltArg: typeof JoltType) {
 
 const userDataSets: PhysicsUserObj[] = []
 
-export function wrapBody(body: JoltType.Body): Obj3D {
+export function addObj3d(obj3d: IObj3D) {
+  userDataSets.push(obj3d.physicsObj)
   const idx = userDataSets.length
-
-  const obj3d = {} as Obj3D
-  const userData: PhysicsUserObj = {
-    body,
-    obj3d,
-    inverseMass: body
-      .GetMotionProperties()
-      .GetInverseMass(),
-
-    position: cloneJoltVec3(body.GetPosition()),
-    rotation: cloneJoltQuat(body.GetRotation()),
-    linearVelocity: cloneJoltVec3(body.GetLinearVelocity()),
-    angularVelocity: cloneJoltVec3(
-      body.GetAngularVelocity()
-    ),
-
-    jointRotation: { y: 0, p: 0, r: 0 },
-
-    contacts: [],
-  }
-
-  obj3d.physics = userData
-
-  userDataSets.push(userData)
-  body.SetUserData(idx)
-
-  return obj3d
+  obj3d.physicsObj.body.SetUserData(idx)
 }
 
 export function getUserData(body: JoltType.Body) {
@@ -156,7 +127,7 @@ export function createBox(
   size: RawAxisVec3,
   position: RawAxisVec3,
   isStatic?: boolean
-): Obj3D {
+): IObj3D {
   const shape = new Jolt.BoxShape(
     new Jolt.Vec3(size.x, size.y, size.z),
     0.05,
@@ -180,12 +151,13 @@ export function createBox(
     Jolt.EActivation_Activate
   )
 
-  const physicsObj = wrapBody(body)
+  const obj3d = new Obj3d(body)
+  addObj3d(obj3d)
 
-  return physicsObj
+  return obj3d
 }
 
-export function createFloor(size = 2): Obj3D {
+export function createFloor(size = 2): IObj3D {
   return createBox(
     { x: size, y: 0.5, z: size },
     { x: 0, y: -0.5, z: 0 },
@@ -195,7 +167,7 @@ export function createFloor(size = 2): Obj3D {
 
 let t = 0
 export function updatePhysics(
-  parts: Record<string, Part>,
+  parts: Record<string, IPart>,
   deltaTime: number
 ) {
   const numSteps = deltaTime > 1.0 / 55.0 ? 2 : 1
@@ -204,37 +176,7 @@ export function updatePhysics(
 
   for (let i = 0; i < userDataSets.length; i++) {
     const userData = userDataSets[i]
-
-    const body = userData.body
-
-    const position = body.GetPosition()
-    userData.position.Set(
-      position.GetX(),
-      position.GetY(),
-      position.GetZ()
-    )
-
-    const rotation = body.GetRotation()
-    userData.rotation.Set(
-      rotation.GetX(),
-      rotation.GetY(),
-      rotation.GetZ(),
-      rotation.GetW()
-    )
-
-    const linearVelocity = body.GetLinearVelocity()
-    userData.linearVelocity.Set(
-      linearVelocity.GetX(),
-      linearVelocity.GetY(),
-      linearVelocity.GetZ()
-    )
-
-    const angularVelocity = body.GetAngularVelocity()
-    userData.angularVelocity.Set(
-      angularVelocity.GetX(),
-      angularVelocity.GetY(),
-      angularVelocity.GetZ()
-    )
+    userData.obj3d.update()
   }
 
   // pre step
@@ -243,7 +185,7 @@ export function updatePhysics(
       const part = parts[id]
       const {
         joint,
-        physics: { contacts },
+        physicsObj: { contacts },
       } = part
 
       // joint
