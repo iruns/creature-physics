@@ -1,6 +1,7 @@
 import initJolt from 'jolt-physics'
-import { Part, RootPartBlueprint } from './utils/types'
-import { buildRagdollFromBlueprint } from './utils/creatureBuilder'
+import blueprint from './blueprints/simpleHumanTop'
+import { Part } from './utils/types'
+import { buildCreature } from './utils/creatureBuilder'
 import {
   addToThreeScene,
   camera,
@@ -26,76 +27,26 @@ window.addEventListener('DOMContentLoaded', () => {
     initWorld(Jolt)
 
     const floorObj = createFloor()
-    addToThreeScene(floorObj, 0x888888)
+    addToThreeScene(floorObj, 0xeeeeee)
 
-    // const size = 0.02
-    // const box = createBox(
-    //   { x: size, y: size, z: size },
-    //   { x: 0, y: size * 1, z: 0 }
-    // )
-    // addToThreeScene({ physics: box }, 0xff8888)
-    // box.body.AddForce(new Jolt.Vec3(0, 80, 0))
-    // // box.body.AddTorque(new Jolt.Vec3(0, 100, 0))
-
-    // Blueprint for minimal skeleton: upper arm and lower arm
-    const blueprint: RootPartBlueprint = {
-      id: 'h-1',
-      name: 'chest',
-
-      // position: { x: 0, y: 0.5, z: 0 },
-      // size: { l: 0.18, w: 0.25, t: 0.08, r: 0 },
-      position: { x: 0, y: 0.2, z: 0 },
-      size: { l: 0.1, w: 0.1, t: 0.1, r: 0 },
-      rotation: { y: 0, p: 0, r: 0 },
-      //       children: [
-      //         {
-      //           name: 'upper-arm',
-      //           // symmetrical: true,
-      //
-      //           size: { l: 0.1, w: 0.1, t: 0.1, r: 0 },
-      //           // size: { l: 0.22, w: 0.05, t: 0.04, r: 0 },
-      //           joint: {
-      //             parentOffset: {
-      //               from: { w: 1, l: 1 },
-      //               w: 0.04,
-      //               l: -0.03,
-      //             },
-      //             childOffset: { from: { l: -1 }, l: -0.01 },
-      //             axis: { y: -120, p: -50, r: -20 },
-      //             limits: { y: 120, p: 110, r: 40 },
-      //           },
-      //           // children: [
-      //           //   {
-      //           //     name: 'lower-arm',
-      //           //     size: { l: 0.22, w: 0.04, t: 0.03, r: 0 },
-      //           //     joint: {
-      //           //       parentOffset: { from: { l: 1 } },
-      //           //       childOffset: { from: { l: -1 } },
-      //           //       axis: { p: -80, r: 0 },
-      //           //       limits: { p: 80, r: 80 },
-      //           //     },
-      //           //     // children: [
-      //           //     //       {
-      //           //     //         name: 'hand',
-      //           //     //         size: { l: 0.08, w: 0.04, t: 0.03, r: 0 },
-      //           //     //         joint: {
-      //           //     //           parentOffset: { from: { l: 1 } },
-      //           //     //           childOffset: { from: { l: -1 } },
-      //           //     //           axis: { y: 0, p: 0, r: 0 },
-      //           //     //           limits: { y: 0, p: 60 },
-      //           //     //           maxTorque: 0.05,
-      //           //     //         },
-      //           //     //       },
-      //           //     // ],
-      //           //   },
-      //           // ],
-      //         },
-      //       ],
-    }
+    const size = 0.02
+    const box = createBox(
+      { x: size, y: size, z: size },
+      { x: 1, y: size * 1, z: 0 }
+    )
+    addToThreeScene(box, 0xff8888)
+    // box.physics.body.AddForce(new Jolt.Vec3(0, 80, 0))
+    // box.physics.body.AddTorque(new Jolt.Vec3(100, 0, 0))
 
     // Use the blueprint utility
-    const { creature, ragdoll, parts, bodies, joints } =
-      buildRagdollFromBlueprint(blueprint, physicsSystem, 1)
+    blueprint.density = 0
+    const { creature, ragdoll, parts } = buildCreature({
+      id: 'human',
+      position: { x: 0, y: 0.2, z: 0 },
+      rotation: { y: 0, p: 0, r: 0 },
+      blueprint,
+      physicsSystem,
+    })
 
     if (!ragdoll) return
 
@@ -126,14 +77,13 @@ window.addEventListener('DOMContentLoaded', () => {
     const timeStep = 1.0 / 30.0
 
     let pStep = 0
-    // pStep = timeStep
+    pStep = timeStep
 
     let t = 0
     setInterval(() => {
       if (pStep) {
-        // updatePhysics({}, pStep)
         updatePhysics(parts, pStep)
-        // updateJointTorques(parts)
+        updateJointTorques(parts)
       }
 
       render(timeStep)

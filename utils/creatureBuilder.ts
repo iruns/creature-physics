@@ -1,13 +1,9 @@
-import {
-  Jolt,
-  axisConfigs,
-  jointAxisConfigs,
-  wrapBody,
-} from './world'
+import { Jolt, axisConfigs, wrapBody } from './world'
 import JoltType from 'jolt-physics'
 import * as THREE from 'three'
 import {
   degToRad,
+  getCenterOfMass,
   quaternionFromYPR,
   toThreeVec3,
 } from './math'
@@ -21,7 +17,8 @@ import {
   JointBlueprintDefaults,
   PartBlueprintDefaults,
   PartShape,
-  RootPartBlueprint,
+  JointAxisVec3,
+  RawAxisVec3,
 } from './types'
 
 export const defaultPartBp: PartBlueprintDefaults = {
@@ -32,21 +29,42 @@ export const defaultPartBp: PartBlueprintDefaults = {
 }
 
 export const defaultJointBp: JointBlueprintDefaults = {
-  maxTorque: 0.8,
-  torqueFloor: 0.1,
+  factors: {
+    toEnd: 1,
+    others: 0.2,
+  },
 
-  targetVelocity: 10,
+  torque: {
+    max: 10,
+    floor: 0.1,
+  },
 
-  centeringFraction: 0.1,
-  centeringStart: 0.5,
-  centeringExponent: 3,
+  maxVelocity: 10,
+
+  zeroing: {
+    frac: 0.1,
+    start: 0.5,
+    exp: 3,
+  },
 }
 
-export function buildRagdollFromBlueprint(
-  rootPartBp: RootPartBlueprint,
-  physicsSystem: JoltType.PhysicsSystem,
-  layer: number = 1
-): BuildResult {
+export function buildCreature({
+  id,
+  position,
+  rotation,
+
+  blueprint,
+  physicsSystem,
+  layer = 1,
+}: {
+  id: string
+
+  position: Partial<RawAxisVec3>
+  rotation: Partial<JointAxisVec3>
+  blueprint: PartBlueprint
+  physicsSystem: JoltType.PhysicsSystem
+  layer?: number
+}): BuildResult {
   // Prepare fixed axes
   const mAxisX2 = new Jolt.Vec3(0, 1, 0)
   const mAxisY2 = new Jolt.Vec3(0, 0, 1)
@@ -94,8 +112,6 @@ export function buildRagdollFromBlueprint(
       bakedPartBp
 
     if (!parentPartBp) {
-      const { position, rotation } =
-        partBp as RootPartBlueprint
       if (!position || !rotation)
         throw new Error(
           'Root part must have position and rotation'
@@ -107,9 +123,9 @@ export function buildRagdollFromBlueprint(
       const { y: rY, p: rP, r: rR } = rotation
       worldRotation.copy(quaternionFromYPR(rY, rP, rR))
     } else {
-      const { joint, size } = partBp
+      const { joint: jointBp, size } = partBp
 
-      if (!joint)
+      if (!jointBp)
         throw new Error('Non-root part must have a joint')
 
       const { size: parentSize } = parentPartBp
@@ -117,7 +133,7 @@ export function buildRagdollFromBlueprint(
       const bakedParentOffset = new THREE.Vector3()
       const bakedChildOffset = new THREE.Vector3()
 
-      const { parentOffset, childOffset } = joint
+      const { parentOffset, childOffset } = jointBp
 
       // calculate baked offsets
       axisConfigs.forEach((config) => {
@@ -136,9 +152,25 @@ export function buildRagdollFromBlueprint(
             (size[partAxis] ?? 0)
       })
 
-      const bakedJoint: BakedJointBlueprint = {
+      const bakedJointBp: BakedJointBlueprint = {
         ...defaultJointBp,
-        ...joint,
+        ...jointBp,
+        ...{
+          factors: {
+            ...defaultJointBp.factors,
+            // inherited
+            ...parentPartBp.joint?.factors,
+            ...jointBp.factors,
+          },
+          torque: {
+            ...defaultJointBp.torque,
+            ...jointBp.torque,
+          },
+          zeroing: {
+            ...defaultJointBp.zeroing,
+            ...jointBp.zeroing,
+          },
+        },
         parentOffset: {
           ...parentOffset,
           baked: bakedParentOffset,
@@ -148,19 +180,28 @@ export function buildRagdollFromBlueprint(
           baked: bakedChildOffset,
         },
 
-        axis: joint.axis || {},
-        limits: joint.limits || {},
+        axis: jointBp.axis || {},
+        mirror: jointBp.mirror || {},
+        limits: jointBp.limits || {},
 
         rotation: new THREE.Quaternion(),
         yawAxis: new THREE.Vector3(),
         twistAxis: new THREE.Vector3(),
       }
-      bakedPartBp.joint = bakedJoint
+      bakedPartBp.joint = bakedJointBp
 
-      const { axis, rotation, yawAxis, twistAxis } =
-        bakedJoint
+      const { axis, mirror, rotation, yawAxis, twistAxis } =
+        bakedJointBp
 
       // Calculate joint rotation from the unprocessed axes
+      //  Mirror some axes of the opposite side
+      if (prefix == 'r-') {
+        if (axis.y) axis.y *= -1
+        if (axis.r) axis.r *= -1
+
+        mirror.y = mirror.y ? false : true
+        mirror.r = mirror.r ? false : true
+      }
       const { y, p, r } = axis
       rotation.copy(
         quaternionFromYPR(y ?? 0, p ?? 0, r ?? 0)
@@ -192,28 +233,27 @@ export function buildRagdollFromBlueprint(
       })
     }
 
+    // bake the other opposite side
     if (symPartBp) {
       delete symPartBp.symmetrical
 
       const symJointBp = symPartBp.joint!
 
-      const { parentOffset, childOffset, axis } = symJointBp
+      const { parentOffset, childOffset } = symJointBp
 
+      // mirror the axis offsets of the first opposite part
       if (parentOffset.w) parentOffset.w *= -1
       if (parentOffset.from?.w) parentOffset.from.w *= -1
 
       if (childOffset.w) childOffset.w *= -1
       if (childOffset.from?.w) childOffset.from.w *= -1
 
-      if (axis?.y) axis.y *= -1
-      if (axis?.r) axis.r *= -1
-
       bakePartBp(symPartBp, parentPartBp, 'r-')
     }
 
     return bakedPartBp
   }
-  bakePartBp(rootPartBp)
+  bakePartBp(blueprint)
 
   // Build skeleton
   const skeleton = new Jolt.Skeleton()
@@ -247,29 +287,24 @@ export function buildRagdollFromBlueprint(
 
     let shape: JoltType.ConvexShape
 
-    const roundingR = Math.min(w, l, t, size.r ?? 0)
     switch (shapeType) {
       case PartShape.Sphere:
         shape = new Jolt.SphereShape(l)
         break
       case PartShape.Cylinder:
-        shape = new Jolt.CylinderShape(l, t, roundingR)
+        shape = new Jolt.CylinderShape(l, t, 0)
         break
       case PartShape.Capsule:
         shape = new Jolt.CapsuleShape(l, t)
         break
       default:
-        shape = new Jolt.BoxShape(
-          new Jolt.Vec3(w, l, t),
-          roundingR
-        )
+        shape = new Jolt.BoxShape(new Jolt.Vec3(w, l, t))
         break
     }
 
     // apply properties
-    shape.SetDensity(
-      partBp.density ?? defaultPartBp.density
-    )
+    const density = partBp.density ?? defaultPartBp.density
+    shape.SetDensity(density)
     settingsPart.mFriction =
       partBp.friction ?? defaultPartBp.friction
     settingsPart.mRestitution =
@@ -374,15 +409,15 @@ export function buildRagdollFromBlueprint(
       }
     }
 
-    settingsPart.mMotionType = Jolt.EMotionType_Dynamic
-    // TEMP, lock the root position
-    // if (!parent)
-    //   settingsPart.mMotionType = Jolt.EMotionType_Static
+    settingsPart.mMotionType = density
+      ? Jolt.EMotionType_Dynamic
+      : Jolt.EMotionType_Static
 
     settingsPart.mObjectLayer = layer
   }
   settings.Stabilize()
-  // settings.DisableParentChildCollisions()
+
+  settings.DisableParentChildCollisions()
 
   // Create ragdoll
   const ragdoll = settings.CreateRagdoll(
@@ -398,7 +433,7 @@ export function buildRagdollFromBlueprint(
   const joints: Record<string, JoltType.SixDOFConstraint> =
     {}
 
-  const creatureId = rootPartBp.id
+  const creatureId = id
 
   // Create creature object
   function fillPart(
@@ -410,7 +445,6 @@ export function buildRagdollFromBlueprint(
       name,
       joint: jointBP,
       children: childrenBps,
-      size,
     } = partBp
 
     const id = creatureId + '-' + name
@@ -475,6 +509,101 @@ export function buildRagdollFromBlueprint(
     return part
   }
   const creature = fillPart(bakedPartBps[0]) as RootPart
+
+  // Calculate torques from masses and torque
+  let sumMass = 0
+  for (const name in parts) {
+    const inverseMass = parts[name].physics.inverseMass
+    sumMass += inverseMass ? 1 / inverseMass : 0
+  }
+
+  // Calculate torques from masses, distance to the joints, and torque bp
+  let otherBodies: JoltType.Body[] = []
+  function setBaseTorques(
+    part: Part,
+    toEndBodies: JoltType.Body[]
+  ) {
+    const { physics, children, joint, bp } = part
+
+    let toEndMass = physics.inverseMass
+      ? 1 / physics.inverseMass
+      : 0
+
+    const { body } = physics
+    toEndBodies.push(body)
+
+    // gather toEndBodies and recursively calculate
+    if (children) {
+      for (const name in children) {
+        const child = children[name]
+        const childToEndBodies: JoltType.Body[] = []
+        toEndMass += setBaseTorques(child, childToEndBodies)
+
+        toEndBodies.push(...childToEndBodies)
+      }
+    }
+
+    const jointBp = bp.joint
+    if (joint && jointBp) {
+      // determine othe bodies
+      otherBodies = Object.values(bodies)
+      for (let i = 0; i < toEndBodies.length; i++) {
+        otherBodies.splice(
+          otherBodies.indexOf(toEndBodies[i]),
+          1
+        )
+      }
+
+      // use the mass and distances to calculate base torque
+      let baseTorque = 0
+      const jointPosition = toThreeVec3(
+        body.GetPosition()
+      ).add(jointBp.childOffset.baked)
+
+      const {
+        factors: {
+          toEnd: toEndFactors,
+          others: othersFactors,
+        },
+        torque: { max: maxTorque, min: minTorque },
+      } = jointBp
+
+      // calculate toEnd
+      if (toEndFactors) {
+        const toEndCoM = getCenterOfMass(toEndBodies)
+        const toEndDistance = toEndCoM
+          ? toThreeVec3(toEndCoM).distanceTo(jointPosition)
+          : 0
+
+        baseTorque +=
+          toEndFactors * toEndMass * toEndDistance
+      }
+
+      // calculate others
+      if (othersFactors) {
+        const othersCoM = getCenterOfMass(otherBodies)
+        const othersDistance = othersCoM
+          ? toThreeVec3(othersCoM).distanceTo(jointPosition)
+          : 0
+
+        baseTorque +=
+          othersFactors *
+          (sumMass - toEndMass) *
+          othersDistance
+      }
+
+      if (baseTorque) {
+        joint.baseTorque = baseTorque
+
+        joint.maxTorque = baseTorque * maxTorque
+        joint.minTorque =
+          baseTorque * (minTorque ?? -maxTorque)
+      }
+    }
+
+    return toEndMass
+  }
+  setBaseTorques(creature, [])
 
   return {
     creature,

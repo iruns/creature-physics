@@ -65,15 +65,44 @@
 
   - [x] move data extraction from Jolt to "world", so the others only have to consume them
 
-- [ ] max torque setting
+- [x] max torque setting
 
   - root multiplier
   - base
   - base from to end
   - base from others
   - base multiplier = 1
+  - incorporate joint distance to the center of mass
+    - either as a group or individuals
 
-- [ ] scaled rotation in viz object
+- [x] joint angle improvements
+
+  - enable joint mirroring directions
+  - record scaled angle
+
+- [ ] move functions to Part and Joint classes
+
+- [ ] convert to package
+
+  - creaturePhysics, should be the only required part
+    - building
+    - update
+      - joint torque
+        - from user
+        - centering
+        - scaled rotation
+      - contacts
+  - world is for demo
+  - joint control is for demo
+  - viz is for demo and debug
+
+  - creature
+    - position and rotation should be set from creaturePhysics
+      - with option for floor part to set position offset
+    - default variables
+      - inheritances
+
+- [ ] fix vibrations
 
 - [ ] skeleton lines
 

@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 import type JoltType from 'jolt-physics'
 import {
-  axisConfigs,
   jointAxisConfigs,
   Jolt,
   partAxisConfigs,
@@ -223,4 +222,32 @@ export function clamp(
   n: number
 ): number {
   return Math.max(Math.min(n, max), min)
+}
+
+/**
+ * Computes the mass-weighted center of mass of a list of Jolt bodies.
+ * Ignores static/kinematic bodies (mass = 0).
+ * @param bodies Array of Jolt.Body
+ * @returns RVec3 center of mass, or null if total mass is zero.
+ */
+export function getCenterOfMass(
+  bodies: JoltType.Body[]
+): JoltType.RVec3 | null {
+  let totalMass = 0
+  let weightedSum = new Jolt.RVec3()
+
+  for (const body of bodies) {
+    const invMass =
+      body.GetMotionProperties()?.GetInverseMass() ?? 0.0
+    const mass = invMass > 0 ? 1.0 / invMass : 0.0
+    if (mass === 0) continue // skip static/kinematic
+
+    const position = body.GetCenterOfMassPosition() // RVec3
+    weightedSum = weightedSum.AddRVec3(position.Mul(mass)) // RVec3.Mul(number)
+    totalMass += mass
+  }
+
+  if (totalMass === 0) return null
+
+  return weightedSum.Div(totalMass)
 }

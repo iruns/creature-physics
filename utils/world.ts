@@ -107,7 +107,7 @@ export function initWorld(JoltArg: typeof JoltType) {
 
   setupContactListeners(physicsSystem)
 
-  // physicsSystem.SetGravity(new Jolt.Vec3(0, 0, 0))
+  physicsSystem.SetGravity(new Jolt.Vec3(0, 0, 0))
 
   const physicsSettings = physicsSystem.GetPhysicsSettings()
   // physicsSettings.mAllowSleeping = false
@@ -134,6 +134,8 @@ export function wrapBody(body: JoltType.Body): Obj3D {
     angularVelocity: cloneJoltVec3(
       body.GetAngularVelocity()
     ),
+
+    jointRotation: { y: 0, p: 0, r: 0 },
 
     contacts: [],
   }
@@ -198,7 +200,7 @@ export function updatePhysics(
 ) {
   const numSteps = deltaTime > 1.0 / 55.0 ? 2 : 1
 
-  console.log('-----', t)
+  // console.log('-----', t)
 
   for (let i = 0; i < userDataSets.length; i++) {
     const userData = userDataSets[i]
@@ -229,9 +231,9 @@ export function updatePhysics(
 
     const angularVelocity = body.GetAngularVelocity()
     userData.angularVelocity.Set(
-      rotation.GetX(),
-      rotation.GetY(),
-      rotation.GetZ()
+      angularVelocity.GetX(),
+      angularVelocity.GetY(),
+      angularVelocity.GetZ()
     )
   }
 
@@ -257,23 +259,6 @@ export function updatePhysics(
   }
 
   jolt.Step(deltaTime, numSteps)
-
-  // post step
-  if (parts) {
-    for (const id in parts) {
-      const part = parts[id]
-      const {
-        joint,
-        physics: { contacts },
-      } = part
-
-      // joint
-      if (joint) {
-        // get rotation
-        // get motor lambdas
-      }
-    }
-  }
 
   t++
 }

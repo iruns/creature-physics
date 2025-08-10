@@ -105,6 +105,8 @@ export function updateJointTorques(
     if (!joint) continue
 
     const {
+      maxTorque,
+      minTorque,
       torqueDirection,
       torque,
       lambda,
@@ -113,15 +115,16 @@ export function updateJointTorques(
 
     const jointBP = bp.joint!
     const {
-      maxTorque,
-      minTorque = -maxTorque,
-      torqueFloor,
+      torque: { floor: torqueFloor },
+      mirror,
 
-      targetVelocity,
+      maxVelocity,
 
-      centeringFraction,
-      centeringStart,
-      centeringExponent,
+      zeroing: {
+        frac: zeroingFraction,
+        start: zeroingStart,
+        exp: zeroingExponent,
+      },
     } = jointBP
 
     // Get relative rotation
@@ -155,7 +158,10 @@ export function updateJointTorques(
       const limit = limits[jointAxis] ?? 0
       if (!limit) continue
 
-      const axisDir = torqueDirection[jointAxis]
+      let axisMultiplier = torqueDirection[jointAxis]
+      // if mirrored, mirror the direction
+      if (mirror?.[jointAxis])
+        axisMultiplier = -axisMultiplier as any
 
       const settings = joltJoint.GetMotorSettings(joltAxis)
 
@@ -169,39 +175,43 @@ export function updateJointTorques(
       const scaledAngle =
         relativeRotation[torqueAxis] / degToRad(limit)
 
-      let centeringScale = 0
+      let centeringMultiplier = 0
       if (scaledAngle) {
-        centeringScale = scale(
+        centeringMultiplier = scale(
           0,
           1,
-          centeringStart,
+          zeroingStart,
           1,
           Math.abs(scaledAngle),
           true
         )
-        centeringScale = Math.max(0, centeringScale)
+        centeringMultiplier = Math.max(
+          0,
+          centeringMultiplier
+        )
 
-        centeringScale **= centeringExponent
-        centeringScale *= centeringFraction
-        // centeringScale *= 0
+        centeringMultiplier **= zeroingExponent
+        centeringMultiplier *= zeroingFraction
+        // centeringMultiplier *= 0
 
         if (scaledAngle < 0)
-          centeringScale = -centeringScale
+          centeringMultiplier = -centeringMultiplier
       }
 
-      // const sumScale = axisDir
-      const sumScale = axisDir - centeringScale
-      torque[jointAxis] = sumScale
+      const sumMultiplier =
+        axisMultiplier - centeringMultiplier
 
-      let targetVelocityA = targetVelocity
+      torque[jointAxis] = sumMultiplier
 
-      if (sumScale > 0) {
+      let targetVelocityA = maxVelocity
+
+      if (sumMultiplier > 0) {
         settings.set_mMaxTorqueLimit(
-          lerp(maxTorqueFloor, maxTorque, sumScale)
+          lerp(maxTorqueFloor, maxTorque, sumMultiplier)
         )
-      } else if (sumScale < 0) {
+      } else if (sumMultiplier < 0) {
         settings.set_mMinTorqueLimit(
-          lerp(minTorqueFloor, minTorque, -sumScale)
+          lerp(minTorqueFloor, minTorque, -sumMultiplier)
         )
         targetVelocityA = -targetVelocityA
       } else {

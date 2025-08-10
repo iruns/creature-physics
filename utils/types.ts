@@ -35,8 +35,6 @@ export type PartBlueprint = {
     w?: number
     /** Thickness (z) */
     t?: number
-    /** Rounding radius for box shape */
-    r?: number
   }
 
   children?: PartBlueprint[]
@@ -44,13 +42,6 @@ export type PartBlueprint = {
   // Only for non-root parts
   joint?: JointBlueprint
 } & Partial<PartBlueprintDefaults>
-
-export type RootPartBlueprint = PartBlueprint & {
-  id: string
-
-  position: Partial<RawAxisVec3>
-  rotation: Partial<JointAxisVec3>
-}
 
 export enum PartShape {
   Sphere,
@@ -80,22 +71,43 @@ export type JointBlueprint = {
   }
   /** Yaw, pitch, roll axes in parent local space */
   axis?: Partial<JointAxisVec3>
+  /** Joint directions to mirror */
+  mirror?: Partial<JointAxisVec3<1 | 0 | boolean>>
   /** Yaw, pitch, roll limits in degrees, relative to axis */
   limits?: Partial<JointAxisVec3>
 } & Partial<JointBlueprintDefaults>
 
 export interface JointBlueprintDefaults {
-  /** max force for motors */
-  maxTorque: number
-  /** min force for motors, if not set, will be -maxForce */
-  minTorque?: number
+  /** Factors of mass * distance that will be used for baseTorque.
+   * Inheritable
+   */
+  factors: {
+    /** Mass of parts AFTER this joint */
+    toEnd: number
+    /** Mass of parts other than AFTER this joint */
+    others: number
+  }
 
-  torqueFloor: number
-  targetVelocity: number
+  torque: {
+    /** Max torque for motors */
+    max: number
+    /** Min torque for motors, if not set, will be -maxForce */
+    min?: number
+    /** the minimum multiplier of force when there's no max velocity */
+    floor: number
+  }
 
-  centeringFraction: number
-  centeringStart: number
-  centeringExponent: number
+  maxVelocity: number
+
+  /** Settings for automatically rotating joint to the starting angle */
+  zeroing: {
+    /** Fraction of max torque to use as the maximum torque for this */
+    frac: number
+    /** At what deviation (to either direction), this force should start */
+    start: number
+    /** The exponent of this force. Typically > 1 to pnly have very large force near the limits */
+    exp: number
+  }
 }
 
 // Baked blueprint, pre conversion to creature
@@ -127,6 +139,7 @@ export type BakedJointBlueprint = JointBlueprint &
     }
 
     axis: NonNullable<JointBlueprint['axis']>
+    mirror: NonNullable<JointBlueprint['mirror']>
     limits: NonNullable<JointBlueprint['limits']>
 
     rotation: THREE.Quaternion
@@ -158,8 +171,8 @@ export interface Joint {
   joint: JoltType.SixDOFConstraint
 
   baseTorque: number
-  minTorque: number
   maxTorque: number
+  minTorque: number
 
   scaledRotation: JointAxisVec3
   torqueDirection: JointAxisVec3<-1 | 0 | 1>
@@ -197,6 +210,8 @@ export interface PhysicsUserObj {
   rotation: JoltType.Quat
   linearVelocity: JoltType.Vec3
   angularVelocity: JoltType.Vec3
+
+  jointRotation: JointAxisVec3
 
   contacts: Contact[]
 }

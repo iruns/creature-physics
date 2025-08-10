@@ -56,14 +56,15 @@ export function initRenderer() {
   renderer.shadowMap.enabled = true // Enable shadow mapping
   renderer.shadowMap.type = THREE.PCFSoftShadowMap
 
+  // camera = new THREE.PerspectiveCamera(
   camera = new THREE.PerspectiveCamera(
     60,
     window.innerWidth / window.innerHeight,
     0.2,
     2000
   )
-  // camera.position.set(0, 0, 0)
-  // camera.lookAt(new THREE.Vector3(0, 0, 0))
+  camera.position.set(0, 0, 0)
+  camera.lookAt(new THREE.Vector3(0, 0, 0))
 
   scene = new THREE.Scene()
 
@@ -143,43 +144,40 @@ export function visualizePart(part: Part): VizUserObj {
       break
   }
 
-  const mesh = addToThreeScene(part, color)
+  const threeObj = addToThreeScene(part, color, vizRadius)
+  const { mesh } = threeObj
 
   mesh.traverse((obj: any) => {
     if (obj.material) {
       obj.material.transparent = true
-      obj.material.opacity = 0.3
+      obj.material.opacity = 0.5
       obj.material.depthWrite = false
     }
   })
 
-  // Add axes helper at joint
-
-  const viz: VizUserObj = {
-    mesh,
-    obj3d: part,
-    vizRadius,
-  }
-
   // If doesn't have radius (not a Part), just return the minimum
-  if (!vizRadius) return viz
+  if (!vizRadius) return threeObj
 
   // Add axes
-  const axes = (viz.axes = new THREE.AxesHelper(vizRadius))
+  const axes = (threeObj.axes = new THREE.AxesHelper(
+    vizRadius
+  ))
   mesh.add(axes)
+  axes.rotateX(degToRad(-90))
 
-  if (!jointBp) return viz
+  if (!jointBp) return threeObj
 
   // If has joint, modify further
   axes.position.copy(jointBp.childOffset.baked)
-  axes.quaternion.copy(jointBp.rotation)
 
-  const torque = (viz.torque = {})
-  const lambda = (viz.lambda = {})
+  const torque = (threeObj.torque = {})
+  const lambda = (threeObj.lambda = {})
 
   const { y, p, r } = jointBp.limits
 
-  const limitRadius = vizRadius * 1.5
+  const limitRadius = vizRadius * 1
+
+  const parentMest = part.parent?.viz?.mesh
 
   // if y and/or p
   if (y || p) {
@@ -269,8 +267,7 @@ export function visualizePart(part: Part): VizUserObj {
 
     swingMesh.position.copy(jointBp.parentOffset.baked)
     swingMesh.quaternion.copy(jointBp.rotation)
-
-    mesh.add(swingMesh)
+    parentMest!.add(swingMesh)
   }
 
   // if r
@@ -311,11 +308,11 @@ export function visualizePart(part: Part): VizUserObj {
     twistArc.position.copy(jointBp.parentOffset.baked)
     twistArc.quaternion.copy(jointBp.rotation)
 
-    mesh.add(twistArc)
+    parentMest!.add(twistArc)
   }
 
   // forces & lambda
-  const forceSize = vizRadius * 2
+  const forceSize = vizRadius * 1
   for (const key in jointBp.limits) {
     const axis = key as JointAxis
     const limit = jointBp.limits[axis]
@@ -337,6 +334,7 @@ export function visualizePart(part: Part): VizUserObj {
         ))
 
       mesh.add(forceArrow)
+      forceArrow.scale.set(0, 0, 0)
 
       const lambdaOrigin = partToThreeAxis(
         axis === 'y' ? 'l' : axis === 'p' ? 'l' : 'w',
@@ -351,10 +349,11 @@ export function visualizePart(part: Part): VizUserObj {
         ))
 
       mesh.add(lambdaArrow)
+      lambdaArrow.scale.set(0, 0, 0)
     }
   }
 
-  return viz
+  return threeObj
 }
 
 // Add a Jolt body to the world scene and dynamicObjects
@@ -362,7 +361,7 @@ export function addToThreeScene(
   obj3d: Obj3D,
   color: number,
   vizRadius = 0
-) {
+): VizUserObj {
   const { body } = obj3d.physics
   const mesh = getThreeMeshForBody(body, color)
 
@@ -375,13 +374,12 @@ export function addToThreeScene(
 
     vizRadius,
     axes: new THREE.AxesHelper(vizRadius),
-    torque: {},
-    lambda: {},
   }
 
   threeObjs.push(threeObj)
+  obj3d.viz = threeObj
 
-  return mesh
+  return threeObj
 }
 
 // Create a Three.js mesh for a Jolt body
