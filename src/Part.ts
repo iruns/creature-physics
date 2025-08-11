@@ -1,11 +1,11 @@
 import { Obj3d } from './Obj3d'
 import { ICreature, IJoint, IPart } from './@types'
 import { BakedPartBlueprint } from './@types/blueprint'
-import { addObj3d } from './utils/world'
 import * as THREE from 'three'
 import { joltToThreeQuat } from './utils/vector'
 import { degToRad, lerp, scale } from './utils/math'
 import { axisConfigs } from './constants/axes'
+import CreatureWorld from './CreatureWorld'
 
 export class Part extends Obj3d implements IPart {
   creature: ICreature
@@ -29,7 +29,7 @@ export class Part extends Obj3d implements IPart {
     parent?: IPart
   }) {
     super(
-      creature.physicsSystem
+      CreatureWorld.physicsSystem
         .GetBodyLockInterfaceNoLock()
         .TryGetBody(creature.ragdoll.GetBodyID(bp.idx))
     )
@@ -54,9 +54,8 @@ export class Part extends Obj3d implements IPart {
     parts[id] = this
 
     body.GetMotionProperties().SetAngularDamping(10)
-    addObj3d(this)
 
-    const { Jolt } = creature
+    const { Jolt } = CreatureWorld
 
     if (jointBP) {
       const joint = Jolt.castObject(
@@ -110,7 +109,7 @@ export class Part extends Obj3d implements IPart {
     const velocity = new THREE.Vector3()
 
     const { joint, bp, creature, children } = this
-    const { Jolt, physicsSystem } = creature
+    const { Jolt, physicsSystem } = CreatureWorld
     const bodyInterface = physicsSystem.GetBodyInterface()
 
     if (joint) {

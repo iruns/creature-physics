@@ -7,6 +7,7 @@ import {
 } from '../@types'
 
 export const axisConfigs: AxisConfig[] = [
+  // will be mirrored on symmetrical Parts
   {
     torqueAxis: 'y',
     rawAxis: 'z',
@@ -25,6 +26,7 @@ export const axisConfigs: AxisConfig[] = [
     jointAxis: 'p',
     joltAxis: 0,
   },
+  // will be mirrored on symmetrical Parts
   {
     torqueAxis: 'x',
     rawAxis: 'y',

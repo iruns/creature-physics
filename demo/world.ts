@@ -1,6 +1,6 @@
 import type JoltType from 'jolt-physics'
-import { RawAxisVec3, IObj3D } from '../@types'
-import { Obj3d } from '../Obj3d'
+import { RawAxisVec3, IObj3D } from '../src/@types'
+import { Obj3d } from '../src/Obj3d'
 
 let jolt: JoltType.JoltInterface
 export let Jolt: typeof JoltType
@@ -45,24 +45,12 @@ export function initWorld(JoltArg: typeof JoltType) {
   physicsSystem = jolt.GetPhysicsSystem()
   bodyInterface = physicsSystem.GetBodyInterface()
 
-  physicsSystem.SetGravity(new Jolt.Vec3(0, 0, 0))
+  // physicsSystem.SetGravity(new Jolt.Vec3(0, 0, 0))
 
   const physicsSettings = physicsSystem.GetPhysicsSettings()
   // physicsSettings.mAllowSleeping = false
   // physicsSettings.mPointVelocitySleepThreshold = 1e-4
   // physicsSettings.mTimeBeforeSleep = 10
-}
-
-const userDataSets: IObj3D[] = []
-
-export function addObj3d(obj3d: IObj3D) {
-  userDataSets.push(obj3d)
-  const idx = userDataSets.length
-  obj3d.body.SetUserData(idx)
-}
-
-export function getUserData(body: JoltType.Body) {
-  return userDataSets[body.GetUserData()]
 }
 
 export function createBox(
@@ -93,10 +81,7 @@ export function createBox(
     Jolt.EActivation_Activate
   )
 
-  const obj3d = new Obj3d(body)
-  addObj3d(obj3d)
-
-  return obj3d
+  return new Obj3d(body)
 }
 
 export function createFloor(size = 2): IObj3D {

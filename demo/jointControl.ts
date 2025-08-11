@@ -1,31 +1,28 @@
-import { IPart } from '../@types'
-import { axisConfigs } from '../constants/axes'
+import { IPart } from '../src/@types'
+import { axisConfigs } from '../src/constants/axes'
 
 // Store per-part torques to be applied each frame
 // Change: Part.torques is Record<string, THREE.Vector3>
 export function createJointControls(
-  parts: Record<string, IPart>
+  parts: Record<string, IPart>,
+  parentEl: HTMLElement = document.body
 ) {
-  let panel = document.getElementById(
-    'joint-motor-panel'
-  ) as HTMLDivElement | null
-  if (!panel) {
-    panel = document.createElement('div')
-    panel.id = 'joint-motor-panel'
-    panel.style.position = 'absolute'
-    panel.style.top = '10px'
-    panel.style.right = '10px'
-    panel.style.background = 'rgba(255,255,255,0.95)'
-    panel.style.padding = '12px'
-    panel.style.borderRadius = '8px'
-    panel.style.zIndex = '1000'
-    panel.style.boxShadow = '0 2px 8px rgba(0,0,0,0.15)'
-    panel.style.maxWidth = '320px'
-    panel.style.fontFamily = 'sans-serif'
-    document.body.appendChild(panel)
-  } else {
-    panel.innerHTML = ''
-  }
+  const panel = document.createElement('div')
+  panel.id = 'joint-motor-panel'
+  const panelStyle = panel.style
+  panelStyle.position = 'absolute'
+  panelStyle.top = '10px'
+  panelStyle.right = '10px'
+
+  panelStyle.background = 'rgba(255, 255, 255,0.8)'
+  panelStyle.padding = '12px'
+  panelStyle.maxWidth = '320px'
+  panelStyle.zIndex = '1000'
+
+  panelStyle.fontSize = '11px'
+  panelStyle.fontFamily = 'sans-serif'
+
+  parentEl.appendChild(panel)
 
   for (const name in parts) {
     const part = parts[name]

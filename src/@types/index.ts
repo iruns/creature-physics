@@ -52,9 +52,6 @@ export enum PartShape {
 
 // Resulting creature
 export interface ICreature {
-  Jolt: typeof JoltType
-  physicsSystem: JoltType.PhysicsSystem
-
   root: RootPart
   ragdoll: JoltType.Ragdoll
   parts: Record<string, IPart>

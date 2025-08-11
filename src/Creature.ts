@@ -24,11 +24,9 @@ import {
   joltToThreeVec3,
 } from './utils/vector'
 import { axisConfigs } from './constants/axes'
+import CreatureWorld from './CreatureWorld'
 
 export default class Creature implements ICreature {
-  Jolt: typeof JoltType
-  physicsSystem: JoltType.PhysicsSystem
-
   root: RootPart
   ragdoll: JoltType.Ragdoll
   parts: Record<string, IPart> = {}
@@ -36,25 +34,18 @@ export default class Creature implements ICreature {
   joints: Record<string, JoltType.SixDOFConstraint> = {}
 
   constructor({
-    Jolt,
-    physicsSystem,
-
     position,
     rotation,
 
     blueprint,
     layer = 1,
   }: {
-    Jolt: typeof JoltType
-    physicsSystem: JoltType.PhysicsSystem
-
     position: Partial<RawAxisVec3>
     rotation: Partial<JointAxisVec3>
     blueprint: PartBlueprint
     layer?: number
   }) {
-    this.Jolt = Jolt
-    this.physicsSystem = physicsSystem
+    const { Jolt, physicsSystem } = CreatureWorld
 
     // Prepare fixed axes
     const mAxisX2 = new Jolt.Vec3(0, 1, 0)

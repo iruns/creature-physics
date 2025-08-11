@@ -1,5 +1,5 @@
 import type JoltType from 'jolt-physics'
-import { Jolt } from './world'
+import CreatureWorld from '../CreatureWorld'
 
 // Helper to convert degrees to radians
 export function degToRad(deg: number): number {
@@ -84,6 +84,8 @@ export function clamp(
 export function getCenterOfMass(
   bodies: JoltType.Body[]
 ): JoltType.RVec3 | null {
+  const { Jolt } = CreatureWorld
+
   let totalMass = 0
   let weightedSum = new Jolt.RVec3()
 
@@ -98,7 +100,13 @@ export function getCenterOfMass(
     totalMass += mass
   }
 
-  if (totalMass === 0) return null
+  if (totalMass === 0) {
+    Jolt.destroy(weightedSum)
+    return null
+  }
 
-  return weightedSum.Div(totalMass)
+  const result = weightedSum.Div(totalMass)
+  Jolt.destroy(weightedSum)
+
+  return result
 }

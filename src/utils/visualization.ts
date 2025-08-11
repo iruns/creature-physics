@@ -1,7 +1,6 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/Addons.js'
 import type JoltType from 'jolt-physics'
-import { Jolt } from './world'
 import {
   IPart,
   PartAxis,
@@ -19,6 +18,7 @@ import {
   joltToThreeVec3,
   joltToThreeQuat,
 } from './vector'
+import CreatureWorld from '../CreatureWorld'
 
 export let container: HTMLElement
 export let scene: THREE.Scene
@@ -422,6 +422,8 @@ function getThreeMeshForBody(
 function createMeshForShape(
   shape: JoltType.Shape
 ): THREE.BufferGeometry {
+  const { Jolt } = CreatureWorld
+
   let scale = new Jolt.Vec3(1, 1, 1)
   let triContext = new Jolt.ShapeGetTriangles(
     shape,

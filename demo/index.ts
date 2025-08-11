@@ -9,26 +9,29 @@ import {
   visualizePart,
 } from '../src/utils/visualization'
 import {
-  physicsSystem,
   initWorld,
-  updatePhysics,
+  physicsSystem,
+  bodyInterface,
   createFloor,
-  createBox,
-} from '../src/utils/world'
-import { createJointControls } from '../src/utils/jointControl'
+  updatePhysics,
+} from './world'
+import { createJointControls } from './jointControl'
 import Creature from '../src/Creature'
 import { initAxes } from '../src/constants/axes'
 import ContactHandler from '../src/utils/ContactHandler'
+import CreatureWorld from '../src/CreatureWorld'
 
 window.addEventListener('DOMContentLoaded', () => {
   initJolt().then(function (Jolt) {
     const updateables: { update: () => void }[] = []
 
+    initWorld(Jolt)
+    CreatureWorld.init(Jolt, physicsSystem, bodyInterface)
+
     initAxes(Jolt)
 
     initRenderer()
 
-    initWorld(Jolt)
     ContactHandler.init(Jolt, physicsSystem)
 
     const floor = createFloor()
@@ -50,9 +53,6 @@ window.addEventListener('DOMContentLoaded', () => {
     // Use the blueprint utility
     blueprint.density = 0
     const creature = new Creature({
-      Jolt,
-      physicsSystem,
-
       position: { x: 0, y: 0.2, z: 0 },
       rotation: { y: 0, p: 0, r: 0 },
       blueprint,

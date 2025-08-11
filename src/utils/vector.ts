@@ -1,6 +1,5 @@
 import * as THREE from 'three'
 import type JoltType from 'jolt-physics'
-import { Jolt } from './world'
 import {
   JointAxis,
   IPart,
@@ -12,6 +11,7 @@ import {
   jointAxisConfigs,
   partAxisConfigs,
 } from '../constants/axes'
+import CreatureWorld from '../CreatureWorld'
 
 export function rotateByAxis(
   quat: THREE.Quaternion,
@@ -110,19 +110,10 @@ export function toScaledPartVec3(
   return result
 }
 
-// To Jolt
-export function toJoltVec3(v: THREE.Vector3) {
-  return new Jolt.Vec3(v.x, v.y, v.z)
-}
-
-export function toJoltQuat(q: THREE.Quaternion) {
-  return new Jolt.Quat(q.x, q.y, q.z, q.w)
-}
-
 // Clone Jolt
 export function copyJoltVec3(
   v: JoltType.Vec3,
-  to = new Jolt.Vec3(0, 0, 0)
+  to = new CreatureWorld.Jolt.Vec3(0, 0, 0)
 ) {
   to.SetX(v.GetX())
   to.SetY(v.GetY())
@@ -132,7 +123,7 @@ export function copyJoltVec3(
 
 export function copyJoltRVec3(
   v: JoltType.RVec3,
-  to = new Jolt.RVec3(0, 0, 0)
+  to = new CreatureWorld.Jolt.RVec3(0, 0, 0)
 ) {
   to.SetX(v.GetX())
   to.SetY(v.GetY())
@@ -142,7 +133,7 @@ export function copyJoltRVec3(
 
 export function copyJoltQuat(
   q: JoltType.Quat,
-  to = new Jolt.Quat(0, 0, 0, 0)
+  to = new CreatureWorld.Jolt.Quat(0, 0, 0, 0)
 ) {
   to.SetX(q.GetX())
   to.SetY(q.GetY())
