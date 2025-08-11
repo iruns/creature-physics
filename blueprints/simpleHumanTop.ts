@@ -1,4 +1,4 @@
-import { PartBlueprint } from '../src/@types'
+import { PartBlueprint } from '../src/@types/blueprint'
 
 const blueprint: PartBlueprint = {
   id: 'chest',

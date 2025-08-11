@@ -1,7 +1,7 @@
 import {
   JointBlueprintDefaults,
   PartBlueprintDefaults,
-} from '../@types'
+} from '../@types/blueprint'
 
 export const defaultPartBp: PartBlueprintDefaults = {
   color: 0x888888,

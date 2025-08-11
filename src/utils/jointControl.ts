@@ -1,5 +1,5 @@
 import { IPart } from '../@types'
-import { axisConfigs } from './world'
+import { axisConfigs } from '../constants/axes'
 
 // Store per-part torques to be applied each frame
 // Change: Part.torques is Record<string, THREE.Vector3>

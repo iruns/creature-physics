@@ -1,29 +1,34 @@
 import {
-  BakedJointBlueprint,
-  BakedPartBlueprint,
   ICreature,
   IPart,
   JointAxisVec3,
-  PartBlueprint,
-  PartShape,
   RawAxisVec3,
   RootPart,
+  PartShape,
 } from './@types'
+import {
+  BakedJointBlueprint,
+  BakedPartBlueprint,
+  PartBlueprint,
+} from './@types/blueprint'
 import JoltType from 'jolt-physics'
-import { Jolt, axisConfigs } from './utils/world'
 import * as THREE from 'three'
 import { Part } from './Part'
 import {
   defaultPartBp,
   defaultJointBp,
-} from './utils/defaults'
+} from './constants/defaults'
 import { degToRad, getCenterOfMass } from './utils/math'
 import {
   jointVec3ToThreeQuat,
   joltToThreeVec3,
 } from './utils/vector'
+import { axisConfigs } from './constants/axes'
 
 export default class Creature implements ICreature {
+  Jolt: typeof JoltType
+  physicsSystem: JoltType.PhysicsSystem
+
   root: RootPart
   ragdoll: JoltType.Ragdoll
   parts: Record<string, IPart> = {}
@@ -31,19 +36,26 @@ export default class Creature implements ICreature {
   joints: Record<string, JoltType.SixDOFConstraint> = {}
 
   constructor({
+    Jolt,
+    physicsSystem,
+
     position,
     rotation,
 
     blueprint,
-    physicsSystem,
     layer = 1,
   }: {
+    Jolt: typeof JoltType
+    physicsSystem: JoltType.PhysicsSystem
+
     position: Partial<RawAxisVec3>
     rotation: Partial<JointAxisVec3>
     blueprint: PartBlueprint
-    physicsSystem: JoltType.PhysicsSystem
     layer?: number
   }) {
+    this.Jolt = Jolt
+    this.physicsSystem = physicsSystem
+
     // Prepare fixed axes
     const mAxisX2 = new Jolt.Vec3(0, 1, 0)
     const mAxisY2 = new Jolt.Vec3(0, 0, 1)
@@ -52,188 +64,13 @@ export default class Creature implements ICreature {
     const bakedPartBps: BakedPartBlueprint[] = []
     const nameToIndex: Record<string, number> = {}
 
-    function bakePartBp(
-      partBp: PartBlueprint,
-      parentPartBp?: BakedPartBlueprint,
-      prefix = ''
-    ) {
-      const { children, symmetrical, size } = partBp
-
-      // if symmetrical, create a copy for the right side
-      let symPartBp: PartBlueprint | undefined
-      if (symmetrical) {
-        symPartBp = JSON.parse(
-          JSON.stringify(partBp)
-        ) as PartBlueprint
-      }
-
-      const l = size.l / 2
-      const w = (size.w ?? 0) / 2 || l
-      const t = (size.t ?? 0) / 2 || w
-
-      const bakedPartBp: BakedPartBlueprint = {
-        ...defaultPartBp,
-        ...partBp,
-        idx: bakedPartBps.length,
-
-        parent: parentPartBp,
-        children: [],
-
-        hSize: { l, w, t },
-
-        worldPosition: new THREE.Vector3(),
-        worldRotation: new THREE.Quaternion(),
-
-        joint: undefined,
-      }
-
-      const { idx, worldPosition, worldRotation } =
-        bakedPartBp
-
-      if (!parentPartBp) {
-        if (!position || !rotation)
-          throw new Error(
-            'Root part must have position and rotation'
-          )
-
-        const { x: pX, y: pY, z: pZ } = position
-        worldPosition.set(pX ?? 0, pY ?? 0, pZ ?? 0)
-
-        worldRotation.copy(jointVec3ToThreeQuat(rotation))
-      } else {
-        const { joint: jointBp, size } = partBp
-
-        if (!jointBp)
-          throw new Error('Non-root part must have a joint')
-
-        const { size: parentSize } = parentPartBp
-
-        const bakedParentOffset = new THREE.Vector3()
-        const bakedChildOffset = new THREE.Vector3()
-
-        const { parentOffset, childOffset } = jointBp
-
-        // calculate baked offsets
-        axisConfigs.forEach((config) => {
-          const { rawAxis, partAxis } = config
-
-          bakedParentOffset[rawAxis] =
-            (parentOffset[partAxis] ?? 0) +
-            (parentOffset.from?.[partAxis] ?? 0) *
-              0.5 *
-              (parentSize[partAxis] ?? 0)
-
-          bakedChildOffset[rawAxis] =
-            (childOffset[partAxis] ?? 0) +
-            (childOffset.from?.[partAxis] ?? 0) *
-              0.5 *
-              (size[partAxis] ?? 0)
-        })
-
-        const bakedJointBp: BakedJointBlueprint = {
-          ...defaultJointBp,
-          ...jointBp,
-          ...{
-            factors: {
-              ...defaultJointBp.factors,
-              // inherited
-              ...parentPartBp.joint?.factors,
-              ...jointBp.factors,
-            },
-            torque: {
-              ...defaultJointBp.torque,
-              ...jointBp.torque,
-            },
-            zeroing: {
-              ...defaultJointBp.zeroing,
-              ...jointBp.zeroing,
-            },
-          },
-          parentOffset: {
-            ...parentOffset,
-            baked: bakedParentOffset,
-          },
-          childOffset: {
-            ...childOffset,
-            baked: bakedChildOffset,
-          },
-
-          axis: jointBp.axis || {},
-          mirror: jointBp.mirror || {},
-          limits: jointBp.limits || {},
-
-          rotation: new THREE.Quaternion(),
-          yawAxis: new THREE.Vector3(),
-          twistAxis: new THREE.Vector3(),
-        }
-        bakedPartBp.joint = bakedJointBp
-
-        const {
-          axis,
-          mirror,
-          rotation,
-          yawAxis,
-          twistAxis,
-        } = bakedJointBp
-
-        // Calculate joint rotation from the unprocessed axes
-        //  Mirror some axes of the opposite side
-        if (prefix == 'r_') {
-          if (axis.y) axis.y *= -1
-          if (axis.r) axis.r *= -1
-
-          mirror.y = mirror.y ? false : true
-          mirror.r = mirror.r ? false : true
-        }
-        rotation.copy(jointVec3ToThreeQuat(axis))
-
-        // get processed joint axes from the rotation
-        const matrix = new THREE.Matrix4()
-        matrix.makeRotationFromQuaternion(rotation)
-
-        yawAxis.setFromMatrixColumn(matrix, 2).normalize()
-        twistAxis.setFromMatrixColumn(matrix, 1).normalize()
-
-        // use joint and parentPart to calculate the world rotation
-        worldRotation.copy(parentPartBp.worldRotation)
-        worldRotation.multiply(rotation)
-
-        parentPartBp.children!.push(bakedPartBp)
-
-        if (symmetrical) prefix = 'l_'
-        bakedPartBp.id = prefix + bakedPartBp.id
-      }
-
-      bakedPartBps.push(bakedPartBp)
-      nameToIndex[bakedPartBp.id] = idx
-
-      if (children) {
-        children.forEach((child) => {
-          bakePartBp(child, bakedPartBp, prefix)
-        })
-      }
-
-      // bake the other opposite side
-      if (symPartBp) {
-        delete symPartBp.symmetrical
-
-        const symJointBp = symPartBp.joint!
-
-        const { parentOffset, childOffset } = symJointBp
-
-        // mirror the axis offsets of the first opposite part
-        if (parentOffset.w) parentOffset.w *= -1
-        if (parentOffset.from?.w) parentOffset.from.w *= -1
-
-        if (childOffset.w) childOffset.w *= -1
-        if (childOffset.from?.w) childOffset.from.w *= -1
-
-        bakePartBp(symPartBp, parentPartBp, 'r_')
-      }
-
-      return bakedPartBp
-    }
-    bakePartBp(blueprint)
+    this.bakePartBp({
+      position,
+      rotation,
+      bakedPartBps,
+      nameToIndex,
+      partBp: blueprint,
+    })
 
     // Build skeleton
     const skeleton = new Jolt.Skeleton()
@@ -262,7 +99,6 @@ export default class Creature implements ICreature {
       const {
         shape: shapeType,
         hSize: { l, w, t },
-        size,
       } = partBp
 
       let shape: JoltType.ConvexShape
@@ -410,7 +246,6 @@ export default class Creature implements ICreature {
 
     // Create the actual Parts
     const root = (this.root = new Part({
-      physicsSystem,
       creature: this,
       bp: bakedPartBps[0],
     }))
@@ -425,6 +260,219 @@ export default class Creature implements ICreature {
     }
 
     this.setBaseTorques(sumMass, root, [])
+  }
+
+  private bakePartBp({
+    position,
+    rotation,
+
+    bakedPartBps,
+    nameToIndex,
+
+    partBp,
+    parentPartBp,
+    prefix = '',
+  }: {
+    position: Partial<RawAxisVec3>
+    rotation: Partial<JointAxisVec3>
+
+    bakedPartBps: BakedPartBlueprint[]
+    nameToIndex: Record<string, number>
+
+    partBp: PartBlueprint
+    parentPartBp?: BakedPartBlueprint
+    prefix?: string
+  }) {
+    const { children, symmetrical, size } = partBp
+
+    // if symmetrical, create a copy for the right side
+    let symPartBp: PartBlueprint | undefined
+    if (symmetrical) {
+      symPartBp = JSON.parse(
+        JSON.stringify(partBp)
+      ) as PartBlueprint
+    }
+
+    const l = size.l / 2
+    const w = (size.w ?? 0) / 2 || l
+    const t = (size.t ?? 0) / 2 || w
+
+    const bakedPartBp: BakedPartBlueprint = {
+      ...defaultPartBp,
+      ...partBp,
+      idx: bakedPartBps.length,
+
+      parent: parentPartBp,
+      children: [],
+
+      hSize: { l, w, t },
+
+      worldPosition: new THREE.Vector3(),
+      worldRotation: new THREE.Quaternion(),
+
+      joint: undefined,
+    }
+
+    const { idx, worldPosition, worldRotation } =
+      bakedPartBp
+
+    if (!parentPartBp) {
+      if (!position || !rotation)
+        throw new Error(
+          'Root part must have position and rotation'
+        )
+
+      const { x: pX, y: pY, z: pZ } = position
+      worldPosition.set(pX ?? 0, pY ?? 0, pZ ?? 0)
+
+      worldRotation.copy(jointVec3ToThreeQuat(rotation))
+    } else {
+      const { joint: jointBp, size } = partBp
+
+      if (!jointBp)
+        throw new Error('Non-root part must have a joint')
+
+      const { size: parentSize } = parentPartBp
+
+      const bakedParentOffset = new THREE.Vector3()
+      const bakedChildOffset = new THREE.Vector3()
+
+      const { parentOffset, childOffset } = jointBp
+
+      // calculate baked offsets
+      axisConfigs.forEach((config) => {
+        const { rawAxis, partAxis } = config
+
+        bakedParentOffset[rawAxis] =
+          (parentOffset[partAxis] ?? 0) +
+          (parentOffset.from?.[partAxis] ?? 0) *
+            0.5 *
+            (parentSize[partAxis] ?? 0)
+
+        bakedChildOffset[rawAxis] =
+          (childOffset[partAxis] ?? 0) +
+          (childOffset.from?.[partAxis] ?? 0) *
+            0.5 *
+            (size[partAxis] ?? 0)
+      })
+
+      const bakedJointBp: BakedJointBlueprint = {
+        ...defaultJointBp,
+        ...jointBp,
+        ...{
+          factors: {
+            ...defaultJointBp.factors,
+            // inherited
+            ...parentPartBp.joint?.factors,
+            ...jointBp.factors,
+          },
+          torque: {
+            ...defaultJointBp.torque,
+            ...jointBp.torque,
+          },
+          zeroing: {
+            ...defaultJointBp.zeroing,
+            ...jointBp.zeroing,
+          },
+        },
+        parentOffset: {
+          ...parentOffset,
+          baked: bakedParentOffset,
+        },
+        childOffset: {
+          ...childOffset,
+          baked: bakedChildOffset,
+        },
+
+        axis: jointBp.axis || {},
+        mirror: jointBp.mirror || {},
+        limits: jointBp.limits || {},
+
+        rotation: new THREE.Quaternion(),
+        yawAxis: new THREE.Vector3(),
+        twistAxis: new THREE.Vector3(),
+      }
+      bakedPartBp.joint = bakedJointBp
+
+      const { axis, mirror, rotation, yawAxis, twistAxis } =
+        bakedJointBp
+
+      // Calculate joint rotation from the unprocessed axes
+      //  Mirror some axes of the opposite side
+      if (prefix == 'r_') {
+        if (axis.y) axis.y *= -1
+        if (axis.r) axis.r *= -1
+
+        mirror.y = mirror.y ? false : true
+        mirror.r = mirror.r ? false : true
+      }
+      rotation.copy(jointVec3ToThreeQuat(axis))
+
+      // get processed joint axes from the rotation
+      const matrix = new THREE.Matrix4()
+      matrix.makeRotationFromQuaternion(rotation)
+
+      yawAxis.setFromMatrixColumn(matrix, 2).normalize()
+      twistAxis.setFromMatrixColumn(matrix, 1).normalize()
+
+      // use joint and parentPart to calculate the world rotation
+      worldRotation.copy(parentPartBp.worldRotation)
+      worldRotation.multiply(rotation)
+
+      parentPartBp.children!.push(bakedPartBp)
+
+      if (symmetrical) prefix = 'l_'
+      bakedPartBp.id = prefix + bakedPartBp.id
+    }
+
+    bakedPartBps.push(bakedPartBp)
+    nameToIndex[bakedPartBp.id] = idx
+
+    if (children) {
+      children.forEach((child) => {
+        this.bakePartBp({
+          position,
+          rotation,
+
+          bakedPartBps,
+          nameToIndex,
+
+          partBp: child,
+          parentPartBp: bakedPartBp,
+          prefix,
+        })
+      })
+    }
+
+    // bake the other opposite side
+    if (symPartBp) {
+      delete symPartBp.symmetrical
+
+      const symJointBp = symPartBp.joint!
+
+      const { parentOffset, childOffset } = symJointBp
+
+      // mirror the axis offsets of the first opposite part
+      if (parentOffset.w) parentOffset.w *= -1
+      if (parentOffset.from?.w) parentOffset.from.w *= -1
+
+      if (childOffset.w) childOffset.w *= -1
+      if (childOffset.from?.w) childOffset.from.w *= -1
+
+      this.bakePartBp({
+        position,
+        rotation,
+
+        bakedPartBps,
+        nameToIndex,
+
+        partBp: symPartBp,
+        parentPartBp: parentPartBp,
+        prefix: 'r_',
+      })
+    }
+
+    return bakedPartBp
   }
 
   private setBaseTorques(
@@ -522,5 +570,9 @@ export default class Creature implements ICreature {
     }
 
     return toEndMass
+  }
+
+  update(): void {
+    //
   }
 }

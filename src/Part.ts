@@ -1,22 +1,15 @@
 import { Obj3d } from './Obj3d'
-import type JoltType from 'jolt-physics'
-import {
-  BakedPartBlueprint,
-  ICreature,
-  IJoint,
-  IPart,
-} from './@types'
-import {
-  Jolt,
-  addObj3d,
-  axisConfigs,
-  bodyInterface,
-} from './utils/world'
+import { ICreature, IJoint, IPart } from './@types'
+import { BakedPartBlueprint } from './@types/blueprint'
+import { addObj3d } from './utils/world'
 import * as THREE from 'three'
 import { joltToThreeQuat } from './utils/vector'
 import { degToRad, lerp, scale } from './utils/math'
+import { axisConfigs } from './constants/axes'
 
 export class Part extends Obj3d implements IPart {
+  creature: ICreature
+
   bp: BakedPartBlueprint
   id: string
 
@@ -27,22 +20,21 @@ export class Part extends Obj3d implements IPart {
   joint?: IJoint
 
   constructor({
-    physicsSystem,
     creature,
     bp,
     parent,
   }: {
-    physicsSystem: JoltType.PhysicsSystem
     creature: ICreature
     bp: BakedPartBlueprint
     parent?: IPart
   }) {
     super(
-      physicsSystem
+      creature.physicsSystem
         .GetBodyLockInterfaceNoLock()
         .TryGetBody(creature.ragdoll.GetBodyID(bp.idx))
     )
 
+    this.creature = creature
     this.parent = parent
 
     const { ragdoll, parts, bodies, joints } = creature
@@ -63,6 +55,8 @@ export class Part extends Obj3d implements IPart {
 
     body.GetMotionProperties().SetAngularDamping(10)
     addObj3d(this)
+
+    const { Jolt } = creature
 
     if (jointBP) {
       const joint = Jolt.castObject(
@@ -102,7 +96,6 @@ export class Part extends Obj3d implements IPart {
       const children = (this.children = {})
       childrenBps.forEach((childBp) => {
         children[childBp.id] = new Part({
-          physicsSystem,
           creature,
           bp: childBp,
           parent: this,
@@ -116,7 +109,12 @@ export class Part extends Obj3d implements IPart {
 
     const velocity = new THREE.Vector3()
 
-    const { joint, bp } = this
+    const { joint, bp, creature } = this
+    const { Jolt, physicsSystem } = creature
+    const bodyInterface = physicsSystem.GetBodyInterface()
+
+    // empty contacts
+    // contacts.length = 0
 
     if (joint) {
       const {

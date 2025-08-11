@@ -1,25 +1,28 @@
 import initJolt from 'jolt-physics'
-import blueprint from './blueprints/simpleHumanTop'
-import { IPart } from './src/@types'
+import blueprint from '../blueprints/simpleHumanTop'
+import { IPart } from '../src/@types'
 import {
   addToThreeScene,
   camera,
   initRenderer,
   render,
   visualizePart,
-} from './src/utils/visualization'
+} from '../src/utils/visualization'
 import {
   physicsSystem,
   initWorld,
   updatePhysics,
   createFloor,
   createBox,
-} from './src/utils/world'
-import { createJointControls } from './src/utils/jointControl'
-import Creature from './src/Creature'
+} from '../src/utils/world'
+import { createJointControls } from '../src/utils/jointControl'
+import Creature from '../src/Creature'
+import { initAxes } from '../src/constants/axes'
 
 window.addEventListener('DOMContentLoaded', () => {
   initJolt().then(function (Jolt) {
+    initAxes(Jolt)
+
     initRenderer()
     initWorld(Jolt)
 
@@ -38,10 +41,12 @@ window.addEventListener('DOMContentLoaded', () => {
     // Use the blueprint utility
     blueprint.density = 0
     const creature = new Creature({
+      Jolt,
+      physicsSystem,
+
       position: { x: 0, y: 0.2, z: 0 },
       rotation: { y: 0, p: 0, r: 0 },
       blueprint,
-      physicsSystem,
     })
     const { parts } = creature
 

@@ -1,10 +1,6 @@
 import * as THREE from 'three'
 import type JoltType from 'jolt-physics'
-import {
-  jointAxisConfigs,
-  Jolt,
-  partAxisConfigs,
-} from './world'
+import { Jolt } from './world'
 import {
   JointAxis,
   IPart,
@@ -12,6 +8,10 @@ import {
   JointAxisVec3,
 } from '../@types'
 import { degToRad } from './math'
+import {
+  jointAxisConfigs,
+  partAxisConfigs,
+} from '../constants/axes'
 
 export function rotateByAxis(
   quat: THREE.Quaternion,
