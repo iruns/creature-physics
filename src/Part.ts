@@ -43,7 +43,7 @@ export class Part extends Obj3d implements IPart {
       idx,
       id,
       joint: jointBP,
-      children: childrenBps,
+      children: childBps,
     } = bp
 
     this.bp = bp
@@ -91,9 +91,9 @@ export class Part extends Obj3d implements IPart {
       }
     }
 
-    if (childrenBps) {
+    if (childBps) {
       const children = (this.children = {})
-      childrenBps.forEach((childBp) => {
+      childBps.forEach((childBp) => {
         children[childBp.id] = new Part({
           creature,
           bp: childBp,

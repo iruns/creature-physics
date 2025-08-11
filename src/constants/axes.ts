@@ -4,7 +4,7 @@ import {
   RawAxis,
   PartAxis,
   JointAxis,
-} from '../@types'
+} from '../@types/axes'
 
 export const axisConfigs: AxisConfig[] = [
   // will be mirrored on symmetrical Parts

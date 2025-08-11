@@ -4,25 +4,17 @@ import { axisConfigs } from '../src/constants/axes'
 // Store per-part torques to be applied each frame
 // Change: Part.torques is Record<string, THREE.Vector3>
 export function createJointControls(
-  parts: Record<string, IPart>,
-  parentEl: HTMLElement = document.body
+  parts: Record<string, IPart>
 ) {
-  const panel = document.createElement('div')
-  panel.id = 'joint-motor-panel'
-  const panelStyle = panel.style
-  panelStyle.position = 'absolute'
-  panelStyle.top = '10px'
-  panelStyle.right = '10px'
-
-  panelStyle.background = 'rgba(255, 255, 255,0.8)'
-  panelStyle.padding = '12px'
-  panelStyle.maxWidth = '320px'
-  panelStyle.zIndex = '1000'
-
-  panelStyle.fontSize = '11px'
-  panelStyle.fontFamily = 'sans-serif'
-
-  parentEl.appendChild(panel)
+  const lCol = document.getElementById(
+    'joint-control-col-l'
+  )!
+  const mCol = document.getElementById(
+    'joint-control-col-m'
+  )!
+  const rCol = document.getElementById(
+    'joint-control-col-r'
+  )!
 
   for (const name in parts) {
     const part = parts[name]
@@ -30,60 +22,48 @@ export function createJointControls(
     const joint = part.joint!
     if (!parent || !joint) continue
 
-    const jointDiv = panel.appendChild(
+    const prefix = name.substring(0, 2)
+    const col =
+      prefix == 'l_' ? lCol : prefix == 'r_' ? rCol : mCol
+
+    const controlSetDiv = col.appendChild(
       document.createElement('div')
     )
-    jointDiv.style.marginBottom = '10px'
-    jointDiv.innerHTML = `<div style="margin-bottom:2px;"><b>${name}</b></div>`
+    controlSetDiv.className = 'control-set'
+
+    const label = controlSetDiv.appendChild(
+      document.createElement('label')
+    )
+    label.textContent = name
 
     const limits = part.bp.joint!.limits
 
     axisConfigs.forEach(({ jointLabel, jointAxis }) => {
       if (!limits[jointAxis]) return
 
-      const axisDiv = jointDiv.appendChild(
-        document.createElement('div')
-      )
-      axisDiv.style.display = 'flex'
-      axisDiv.style.alignItems = 'center'
-      axisDiv.style.marginBottom = '4px'
-      axisDiv.style.gap = '8px'
-      axisDiv.style.width = '100%'
-
       const { torqueDirection } = joint
 
-      // Left button
-      const leftButton = axisDiv.appendChild(
-        document.createElement('button')
+      // Negative button
+      const nButton = controlSetDiv.appendChild(
+        document.createElement('div')
       )
-      leftButton.textContent = '<'
-      leftButton.style.flex = '0 0 auto'
+      nButton.className = jointAxis + 'n'
 
-      leftButton.onmousedown = () =>
+      nButton.onmousedown = () =>
         (torqueDirection[jointAxis] = -1)
-      leftButton.onmouseup = leftButton.onmouseleave = () =>
+      nButton.onmouseup = nButton.onmouseleave = () =>
         (torqueDirection[jointAxis] = 0)
 
-      // Axis label (centered)
-      const labelDiv = axisDiv.appendChild(
-        document.createElement('span')
+      // Positive button
+      const pButton = controlSetDiv.appendChild(
+        document.createElement('div')
       )
-      labelDiv.textContent = jointLabel
-      labelDiv.style.flex = '1 1 auto'
-      labelDiv.style.textAlign = 'center'
-      labelDiv.style.fontWeight = 'bold'
+      pButton.className = jointAxis + 'p'
 
-      // Right button
-      const rightButton = axisDiv.appendChild(
-        document.createElement('button')
-      )
-      rightButton.textContent = '>'
-      rightButton.style.flex = '0 0 auto'
-
-      rightButton.onmousedown = () =>
+      pButton.onmousedown = () =>
         (torqueDirection[jointAxis] = 1)
-      rightButton.onmouseup = rightButton.onmouseleave =
-        () => (torqueDirection[jointAxis] = 0)
+      pButton.onmouseup = pButton.onmouseleave = () =>
+        (torqueDirection[jointAxis] = 0)
     })
   }
 }

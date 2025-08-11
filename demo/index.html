@@ -10,7 +10,148 @@
 
 <body style="margin: 0; overflow: hidden;">
   <div id="container">Loading...</div>
+  <div id="joint-control">
+    <h3>Control</h3>
+    <div class="cols">
+      <div id="joint-control-col-l" class="col"></div>
+      <div id="joint-control-col-m" class="col">
+        <div class="control-set">
+          <label class="title">part</label>
+
+          <div class="rn"></div>
+          <div class="pp"></div>
+          <div class="rp"></div>
+
+          <div class="yn"></div>
+          <div class="pn"></div>
+          <div class="yp"></div>
+        </div>
+      </div>
+      <div id="joint-control-col-r" class="col"></div>
+    </div>
+  </div>
   <script type="module" src="./index.ts"></script>
 </body>
+
+<style>
+  #joint-control {
+    position: absolute;
+    bottom: 10px;
+    right: 10px;
+
+    background: rgba(255, 255, 255, 0.6);
+    padding: 2px;
+    max-width: 320px;
+    z-index: 1000;
+
+    font-size: 11px;
+    font-family: sans-serif;
+
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  #joint-control h3 {
+    margin: 2px;
+  }
+
+  #joint-control .cols {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+  }
+
+  #joint-control .col {
+    display: flex;
+    flex-direction: column;
+    flex-wrap: nowrap;
+  }
+
+  #joint-control .control-set {
+    background: rgba(255, 255, 255, 0.8);
+    margin: 2px;
+    padding: 2px;
+
+    display: grid;
+    grid-template-areas:
+      "title title title"
+      "rn pp rp"
+      "yn pn yp";
+  }
+
+  #joint-control .control-set>label {
+    margin-bottom: 4px;
+    color: #555;
+    grid-area: title;
+  }
+
+  #joint-control .control-set>* {
+    text-align: center;
+  }
+
+  #joint-control .control-set>div {
+    cursor: pointer;
+  }
+
+  #joint-control .control-set>div:hover {
+    background-color: #ddd;
+  }
+
+  #joint-control .control-set>div:active {
+    background-color: #ccc;
+  }
+
+  #joint-control .control-set>.rn {
+    grid-area: rn;
+  }
+
+  #joint-control .control-set>.rn::after {
+    content: "◺";
+  }
+
+  #joint-control .control-set>.pp {
+    grid-area: pp;
+  }
+
+  #joint-control .control-set>.pp::after {
+    content: "▲";
+  }
+
+  #joint-control .control-set>.rp {
+    grid-area: rp;
+  }
+
+  #joint-control .control-set>.rp::after {
+    content: "◿";
+  }
+
+  #joint-control .control-set>.yn {
+    padding-bottom: 20%;
+    grid-area: yn;
+  }
+
+  #joint-control .control-set>.yn::after {
+    content: "◀";
+  }
+
+  #joint-control .control-set>.pn {
+    padding-top: 20%;
+    grid-area: pn;
+  }
+
+  #joint-control .control-set>.pn::after {
+    content: "▼";
+  }
+
+  #joint-control .control-set>.yp {
+    padding-bottom: 20%;
+    grid-area: yp;
+  }
+
+  #joint-control .control-set>.yp::after {
+    content: "▶";
+  }
+</style>
 
 </html>

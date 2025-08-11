@@ -1,5 +1,6 @@
 import type JoltType from 'jolt-physics'
-import { RawAxisVec3, IObj3D } from '../src/@types'
+import { IObj3D } from '../src/@types'
+import { RawAxisVec3 } from '../src/@types/axes'
 import { Obj3d } from '../src/Obj3d'
 
 let jolt: JoltType.JoltInterface

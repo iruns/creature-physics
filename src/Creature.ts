@@ -1,11 +1,10 @@
 import {
   ICreature,
   IPart,
-  JointAxisVec3,
-  RawAxisVec3,
   RootPart,
   PartShape,
 } from './@types'
+import { JointAxisVec3, RawAxisVec3 } from './@types/axes'
 import {
   BakedJointBlueprint,
   BakedPartBlueprint,
@@ -274,7 +273,9 @@ export default class Creature implements ICreature {
     parentPartBp?: BakedPartBlueprint
     prefix?: string
   }) {
-    const { children, symmetrical, size } = partBp
+    const { child, children, symmetrical, size } = partBp
+    const childBps =
+      children || (child ? [child] : undefined)
 
     // if symmetrical, create a copy for the right side
     let symPartBp: PartBlueprint | undefined
@@ -419,8 +420,8 @@ export default class Creature implements ICreature {
     bakedPartBps.push(bakedPartBp)
     nameToIndex[bakedPartBp.id] = idx
 
-    if (children) {
-      children.forEach((child) => {
+    if (childBps) {
+      childBps.forEach((child) => {
         this.bakePartBp({
           position,
           rotation,

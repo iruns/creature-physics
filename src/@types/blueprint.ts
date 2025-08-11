@@ -1,9 +1,9 @@
+import { PartShape } from '.'
 import {
   PartAxisVec3,
   AnchorValue,
   JointAxisVec3,
-  PartShape,
-} from '.'
+} from './axes'
 import * as THREE from 'three'
 
 // Blueprint
@@ -23,6 +23,7 @@ export type PartBlueprint = {
     t?: number
   }
 
+  child?: PartBlueprint
   children?: PartBlueprint[]
 
   // Only for non-root parts

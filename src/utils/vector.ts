@@ -1,11 +1,11 @@
 import * as THREE from 'three'
 import type JoltType from 'jolt-physics'
+import { IPart } from '../@types'
 import {
   JointAxis,
-  IPart,
   PartAxis,
   JointAxisVec3,
-} from '../@types'
+} from '../@types/axes'
 import { degToRad } from './math'
 import {
   jointAxisConfigs,

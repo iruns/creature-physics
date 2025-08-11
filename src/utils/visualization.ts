@@ -3,15 +3,17 @@ import { OrbitControls } from 'three/examples/jsm/Addons.js'
 import type JoltType from 'jolt-physics'
 import {
   IPart,
-  PartAxis,
-  JointAxis,
   Contact,
   PartShape,
   VizUserObj,
   IObj3D,
   IJoint,
-  JointAxisVec3,
 } from '../@types'
+import {
+  PartAxis,
+  JointAxis,
+  JointAxisVec3,
+} from '../@types/axes'
 import { degToRad, exponentiate } from './math'
 import {
   partToThreeAxis,
