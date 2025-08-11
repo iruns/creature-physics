@@ -1,18 +1,5 @@
 import type JoltType from 'jolt-physics'
-import {
-  AxisConfig,
-  JointAxis,
-  IPart,
-  PartAxis,
-  RawAxis,
-  RawAxisVec3,
-  PhysicsUserObj,
-  IObj3D,
-} from '../@types'
-import {
-  setupCollisionFiltering,
-  setupContactListeners,
-} from './contacts'
+import { RawAxisVec3, IObj3D } from '../@types'
 import { Obj3d } from '../Obj3d'
 
 let jolt: JoltType.JoltInterface
@@ -27,7 +14,30 @@ export function initWorld(JoltArg: typeof JoltType) {
   const settings = new Jolt.JoltSettings()
   settings.mMaxWorkerThreads = 3
 
-  setupCollisionFiltering(settings)
+  const objectFilter = new Jolt.ObjectLayerPairFilterTable(
+    2
+  )
+  objectFilter.EnableCollision(0, 1)
+  objectFilter.EnableCollision(1, 1)
+  const bpInterface =
+    new Jolt.BroadPhaseLayerInterfaceTable(2, 2)
+  bpInterface.MapObjectToBroadPhaseLayer(
+    0,
+    new Jolt.BroadPhaseLayer(0)
+  )
+  bpInterface.MapObjectToBroadPhaseLayer(
+    1,
+    new Jolt.BroadPhaseLayer(1)
+  )
+  settings.mObjectLayerPairFilter = objectFilter
+  settings.mBroadPhaseLayerInterface = bpInterface
+  settings.mObjectVsBroadPhaseLayerFilter =
+    new Jolt.ObjectVsBroadPhaseLayerFilterTable(
+      settings.mBroadPhaseLayerInterface,
+      2,
+      settings.mObjectLayerPairFilter,
+      2
+    )
 
   jolt = new Jolt.JoltInterface(settings)
   Jolt.destroy(settings)
@@ -35,9 +45,7 @@ export function initWorld(JoltArg: typeof JoltType) {
   physicsSystem = jolt.GetPhysicsSystem()
   bodyInterface = physicsSystem.GetBodyInterface()
 
-  setupContactListeners(physicsSystem)
-
-  // physicsSystem.SetGravity(new Jolt.Vec3(0, 0, 0))
+  physicsSystem.SetGravity(new Jolt.Vec3(0, 0, 0))
 
   const physicsSettings = physicsSystem.GetPhysicsSettings()
   // physicsSettings.mAllowSleeping = false
@@ -45,12 +53,12 @@ export function initWorld(JoltArg: typeof JoltType) {
   // physicsSettings.mTimeBeforeSleep = 10
 }
 
-const userDataSets: PhysicsUserObj[] = []
+const userDataSets: IObj3D[] = []
 
 export function addObj3d(obj3d: IObj3D) {
-  userDataSets.push(obj3d.physicsObj)
+  userDataSets.push(obj3d)
   const idx = userDataSets.length
-  obj3d.physicsObj.body.SetUserData(idx)
+  obj3d.body.SetUserData(idx)
 }
 
 export function getUserData(body: JoltType.Body) {
@@ -100,39 +108,10 @@ export function createFloor(size = 2): IObj3D {
 }
 
 let t = 0
-export function updatePhysics(
-  parts: Record<string, IPart>,
-  deltaTime: number
-) {
+export function updatePhysics(deltaTime: number) {
   const numSteps = deltaTime > 1.0 / 55.0 ? 2 : 1
 
   // console.log('-----', t)
-
-  for (let i = 0; i < userDataSets.length; i++) {
-    const userData = userDataSets[i]
-    userData.obj3d.update()
-  }
-
-  // pre step
-  if (parts) {
-    for (const id in parts) {
-      const part = parts[id]
-      const {
-        joint,
-        physicsObj: { contacts },
-      } = part
-
-      // joint
-      if (joint) {
-        // apply torque
-        //
-      }
-
-      // contact
-      //  empty
-      contacts.length = 0
-    }
-  }
 
   jolt.Step(deltaTime, numSteps)
 

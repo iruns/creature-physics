@@ -255,7 +255,7 @@ export default class Creature implements ICreature {
 
     let sumMass = 0
     for (const name in parts) {
-      const inverseMass = parts[name].physicsObj.inverseMass
+      const inverseMass = parts[name].inverseMass
       sumMass += inverseMass ? 1 / inverseMass : 0
     }
 
@@ -481,15 +481,12 @@ export default class Creature implements ICreature {
     toEndBodies: JoltType.Body[]
   ) {
     const { bodies } = this
-    const { physicsObj, children, joint, bp } = part
+    const { inverseMass, body, children, joint, bp } = part
 
     let otherBodies: JoltType.Body[] = []
 
-    let toEndMass = physicsObj.inverseMass
-      ? 1 / physicsObj.inverseMass
-      : 0
+    let toEndMass = inverseMass ? 1 / inverseMass : 0
 
-    const { body } = physicsObj
     toEndBodies.push(body)
 
     // gather toEndBodies and recursively calculate
@@ -573,6 +570,6 @@ export default class Creature implements ICreature {
   }
 
   update(): void {
-    //
+    this.root.update()
   }
 }

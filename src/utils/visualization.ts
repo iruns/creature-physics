@@ -81,7 +81,8 @@ export function initRenderer() {
 
   // Restore camera state if present
   const saved = localStorage.getItem('cameraState')
-  // const saved = {}
+  // const saved = '{}'
+
   if (saved) {
     try {
       const { position, target, zoom } = JSON.parse(saved)
@@ -365,7 +366,7 @@ export function addToThreeScene(
   color: number,
   vizRadius = 0
 ): VizUserObj {
-  const { body } = obj3d.physicsObj
+  const { body } = obj3d
   const mesh = getThreeMeshForBody(body, color)
 
   mesh.userData.body = body
@@ -452,16 +453,16 @@ function createMeshForShape(
 // Update
 
 export function render(deltaTime: number) {
-  const contacts: Contact[] = []
+  const allContacts: Contact[] = []
 
   for (let i = 0; i < threeObjs.length; i++) {
     const { mesh, obj3d } = threeObjs[i]
-    const { physicsObj } = obj3d
+    const { position, rotation, contacts } = obj3d
 
-    joltToThreeVec3(physicsObj.position, mesh.position)
-    joltToThreeQuat(physicsObj.rotation, mesh.quaternion)
+    joltToThreeVec3(position, mesh.position)
+    joltToThreeQuat(rotation, mesh.quaternion)
 
-    contacts.push(...physicsObj.contacts)
+    allContacts.push(...contacts)
 
     // if has joint, update the force arrows
     const { joint, vizObj } = obj3d as IPart
@@ -470,7 +471,7 @@ export function render(deltaTime: number) {
   }
 
   // Contacts
-  updateContacts(contacts)
+  updateContacts(allContacts)
 
   // Camera
   controls.update(deltaTime)

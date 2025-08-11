@@ -1,9 +1,5 @@
 import type JoltType from 'jolt-physics'
-import {
-  IObj3D,
-  PhysicsUserObj,
-  VizUserObj,
-} from './@types'
+import { Contact, IObj3D, VizUserObj } from './@types'
 import {
   copyJoltRVec3,
   copyJoltQuat,
@@ -11,45 +7,50 @@ import {
 } from './utils/vector'
 
 export class Obj3d implements IObj3D {
-  physicsObj: PhysicsUserObj
+  body: JoltType.Body
+  inverseMass: number
+
+  position: JoltType.RVec3
+  rotation: JoltType.Quat
+  linearVelocity: JoltType.Vec3
+  angularVelocity: JoltType.Vec3
+
+  contacts: Contact[]
+
   vizObj?: VizUserObj
 
   constructor(body: JoltType.Body) {
-    this.physicsObj = {
-      body,
-      obj3d: this,
-      inverseMass: body
-        .GetMotionProperties()
-        .GetInverseMass(),
+    this.body = body
+    this.inverseMass = body
+      .GetMotionProperties()
+      .GetInverseMass()
+    this.position = copyJoltRVec3(body.GetPosition())
+    this.rotation = copyJoltQuat(body.GetRotation())
+    this.linearVelocity = copyJoltVec3(
+      body.GetLinearVelocity()
+    )
+    this.angularVelocity = copyJoltVec3(
+      body.GetAngularVelocity()
+    )
 
-      position: copyJoltRVec3(body.GetPosition()),
-      rotation: copyJoltQuat(body.GetRotation()),
-      linearVelocity: copyJoltVec3(
-        body.GetLinearVelocity()
-      ),
-      angularVelocity: copyJoltVec3(
-        body.GetAngularVelocity()
-      ),
-
-      contacts: [],
-    }
+    this.contacts = []
   }
 
   update(): void {
     const {
-      physicsObj,
-      physicsObj: { body },
+      body,
+      position,
+      rotation,
+      linearVelocity,
+      angularVelocity,
+      contacts,
     } = this
 
-    copyJoltRVec3(body.GetPosition(), physicsObj.position)
-    copyJoltQuat(body.GetRotation(), physicsObj.rotation)
-    copyJoltVec3(
-      body.GetLinearVelocity(),
-      physicsObj.linearVelocity
-    )
-    copyJoltVec3(
-      body.GetAngularVelocity(),
-      physicsObj.angularVelocity
-    )
+    copyJoltRVec3(body.GetPosition(), position)
+    copyJoltQuat(body.GetRotation(), rotation)
+    copyJoltVec3(body.GetLinearVelocity(), linearVelocity)
+    copyJoltVec3(body.GetAngularVelocity(), angularVelocity)
+
+    contacts.length = 0
   }
 }

@@ -24,7 +24,7 @@ const blueprint: PartBlueprint = {
         {
           id: 'upper_arm',
 
-          size: { l: 0.22, w: 0.03, t: 0.05 },
+          size: { l: 0.22, w: 0.04, t: 0.05 },
           joint: {
             parentOffset: {
               from: { l: 1, w: -1 },
@@ -39,7 +39,7 @@ const blueprint: PartBlueprint = {
           children: [
             {
               id: 'lower_arm',
-              size: { l: 0.22, w: 0.04, t: 0.02 },
+              size: { l: 0.22, w: 0.04, t: 0.03 },
               joint: {
                 parentOffset: { from: { l: 1 } },
                 childOffset: { from: { l: -1 } },

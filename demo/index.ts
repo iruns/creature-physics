@@ -18,23 +18,32 @@ import {
 import { createJointControls } from '../src/utils/jointControl'
 import Creature from '../src/Creature'
 import { initAxes } from '../src/constants/axes'
+import ContactHandler from '../src/utils/ContactHandler'
 
 window.addEventListener('DOMContentLoaded', () => {
   initJolt().then(function (Jolt) {
+    const updateables: { update: () => void }[] = []
+
     initAxes(Jolt)
 
     initRenderer()
+
     initWorld(Jolt)
+    ContactHandler.init(Jolt, physicsSystem)
 
-    const floorObj = createFloor()
-    addToThreeScene(floorObj, 0xeeeeee)
+    const floor = createFloor()
+    updateables.push(floor)
+    ContactHandler.addContactObj(floor)
+    addToThreeScene(floor, 0xeeeeee)
 
-    const size = 0.02
-    const box = createBox(
-      { x: size, y: size, z: size },
-      { x: 1, y: size * 1, z: 0 }
-    )
-    addToThreeScene(box, 0xff8888)
+    // const size = 0.02
+    // const box = createBox(
+    //   { x: size, y: size, z: size },
+    //   { x: 1, y: size * 1, z: 0 }
+    // )
+    // updateables.push(box)
+    // addContactObj(box)
+    // addToThreeScene(box, 0xff8888)
     // box.physicsObj.body.AddForce(new Jolt.Vec3(0, 80, 0))
     // box.physicsObj.body.AddTorque(new Jolt.Vec3(100, 0, 0))
 
@@ -48,6 +57,10 @@ window.addEventListener('DOMContentLoaded', () => {
       rotation: { y: 0, p: 0, r: 0 },
       blueprint,
     })
+    updateables.push(creature)
+    creature.root.applyDown((part) =>
+      ContactHandler.addContactObj(part)
+    )
     const { parts } = creature
 
     // Add joint motor sliders UI
@@ -82,9 +95,10 @@ window.addEventListener('DOMContentLoaded', () => {
     let t = 0
     setInterval(() => {
       if (pStep) {
-        // updatePhysics({}, pStep)
-        updatePhysics(parts, pStep)
-        // updateJointTorques(parts)
+        for (let i = 0; i < updateables.length; i++)
+          updateables[i].update()
+
+        updatePhysics(pStep)
       }
 
       render(timeStep)

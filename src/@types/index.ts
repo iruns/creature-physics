@@ -25,7 +25,19 @@ export type PartAxisVec3<T = number> = Record<PartAxis, T>
 export type JointAxisVec3<T = number> = Record<JointAxis, T>
 
 export interface IObj3D {
-  physicsObj: PhysicsUserObj
+  // physics stuff
+  body: JoltType.Body
+  inverseMass: number
+
+  // TODO check if this can be changed to THREE or raw vec3s
+  position: JoltType.RVec3
+  rotation: JoltType.Quat
+  linearVelocity: JoltType.Vec3
+  angularVelocity: JoltType.Vec3
+
+  contacts: Contact[]
+
+  // viz stuff
   vizObj?: VizUserObj
 
   update(): void
@@ -63,6 +75,7 @@ export interface IPart extends IObj3D {
   parent?: IPart
 
   joint?: IJoint
+  applyDown(cb: (part: IPart) => void): void
 }
 
 export interface IJoint {
@@ -91,20 +104,6 @@ export interface Contact {
   strength: number
   friction: number
   otherBodyId: number
-}
-
-export interface PhysicsUserObj {
-  body: JoltType.Body
-  obj3d: IObj3D
-  inverseMass: number
-
-  // TODO check if this can be changed to THREE or raw vec3s
-  position: JoltType.RVec3
-  rotation: JoltType.Quat
-  linearVelocity: JoltType.Vec3
-  angularVelocity: JoltType.Vec3
-
-  contacts: Contact[]
 }
 
 export interface VizUserObj {

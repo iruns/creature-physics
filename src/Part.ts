@@ -49,7 +49,7 @@ export class Part extends Obj3d implements IPart {
     this.bp = bp
     this.id = id
 
-    const { body } = this.physicsObj
+    const { body } = this
     bodies[id] = body
     parts[id] = this
 
@@ -109,12 +109,9 @@ export class Part extends Obj3d implements IPart {
 
     const velocity = new THREE.Vector3()
 
-    const { joint, bp, creature } = this
+    const { joint, bp, creature, children } = this
     const { Jolt, physicsSystem } = creature
     const bodyInterface = physicsSystem.GetBodyInterface()
-
-    // empty contacts
-    // contacts.length = 0
 
     if (joint) {
       const {
@@ -246,5 +243,15 @@ export class Part extends Obj3d implements IPart {
 
       Jolt.destroy(velocityVec3)
     }
+
+    if (children)
+      for (const id in children) children[id].update()
+  }
+
+  applyDown(cb: (part: IPart) => void): void {
+    cb(this)
+    const { children } = this
+    if (children)
+      for (const id in children) children[id].applyDown(cb)
   }
 }
