@@ -2,7 +2,9 @@
   "name": "creature-physics",
   "version": "1.0.0",
   "main": "index.js",
+  "types": "index.d.ts",
   "scripts": {
+    "build": "npx tsc",
     "dev": "vite"
   },
   "author": "",

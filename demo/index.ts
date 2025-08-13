@@ -22,7 +22,7 @@ import ContactHandler from '../src/utils/ContactHandler'
 import CreatureWorld from '../src/CreatureWorld'
 
 window.addEventListener('DOMContentLoaded', () => {
-  initJolt().then(function (Jolt) {
+  initJolt().then(function (Jolt: typeof initJolt) {
     const updateables: { update: () => void }[] = []
 
     initWorld(Jolt)

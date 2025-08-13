@@ -173,8 +173,9 @@ export function visualizePart(part: IPart): VizUserObj {
   // If has joint, modify further
   axes.position.copy(jointBp.childOffset.baked)
 
-  const torque = (threeObj.torque = {})
-  const lambda = (threeObj.lambda = {})
+  threeObj.torque = {}
+  threeObj.lambda = {}
+  const { torque, lambda } = threeObj
 
   const { y, p, r } = jointBp.limits
 

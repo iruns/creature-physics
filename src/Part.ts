@@ -92,7 +92,8 @@ export class Part extends Obj3d implements IPart {
     }
 
     if (childBps) {
-      const children = (this.children = {})
+      this.children = {}
+      const { children } = this
       childBps.forEach((childBp) => {
         children[childBp.id] = new Part({
           creature,

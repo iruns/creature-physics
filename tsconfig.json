@@ -1,0 +1,13 @@
+{
+  "exclude": ["node_modules", "build"],
+  "compilerOptions": {
+    "lib": ["ESNext", "dom"],
+    "module": "nodenext",
+    "target": "esnext",
+    "moduleDetection": "force",
+    "moduleResolution": "nodenext",
+    "outDir": "build",
+    "skipLibCheck": true
+    // "strict": true
+  }
+}
