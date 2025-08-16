@@ -1,5 +1,5 @@
 import type JoltType from 'jolt-physics'
-import { toRawVec3, toScaledPartVec3 } from './vector'
+import { joltToVec3, joltToScaledPartVec3 } from './vector'
 import { IObj3D, IPart } from '../@types'
 
 export default class ContactHandler {
@@ -139,7 +139,7 @@ export default class ContactHandler {
         const pointOnB = pointsOnB.at(i)
         if (!pointsOnB || !pointOnB.Length()) break
 
-        const worldPosition = toRawVec3(
+        const worldPosition = joltToVec3(
           manifold.GetWorldSpaceContactPointOn1(
             i
           ) as any as JoltType.Vec3
@@ -170,7 +170,7 @@ export default class ContactHandler {
         if (partA.id) {
           contactsA.push({
             worldPosition,
-            position: toScaledPartVec3(
+            position: joltToScaledPartVec3(
               rotationA.MulVec3(pointOnA),
               partA
             ),
@@ -184,7 +184,7 @@ export default class ContactHandler {
         if (partB.id)
           contactsB.push({
             worldPosition,
-            position: toScaledPartVec3(
+            position: joltToScaledPartVec3(
               rotationB.MulVec3(pointOnB),
               partB
             ),

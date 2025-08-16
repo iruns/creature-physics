@@ -2,9 +2,9 @@ import {
   ICreature,
   IPart,
   RootPart,
-  PartShape,
+  Obj3dShape,
 } from './@types'
-import { JointAxisVec3, RawAxisVec3 } from './@types/axes'
+import { JointAxisVec3, Vec3 } from './@types/axes'
 import {
   BakedJointBlueprint,
   BakedPartBlueprint,
@@ -39,7 +39,7 @@ export default class Creature implements ICreature {
     blueprint,
     layer = 1,
   }: {
-    position: Partial<RawAxisVec3>
+    position: Partial<Vec3>
     rotation: Partial<JointAxisVec3>
     blueprint: PartBlueprint
     layer?: number
@@ -94,13 +94,13 @@ export default class Creature implements ICreature {
       let shape: JoltType.ConvexShape
 
       switch (shapeType) {
-        case PartShape.Sphere:
+        case Obj3dShape.Sphere:
           shape = new Jolt.SphereShape(l)
           break
-        case PartShape.Cylinder:
+        case Obj3dShape.Cylinder:
           shape = new Jolt.CylinderShape(l, t, 0)
           break
-        case PartShape.Capsule:
+        case Obj3dShape.Capsule:
           shape = new Jolt.CapsuleShape(l, t)
           break
         default:
@@ -263,7 +263,7 @@ export default class Creature implements ICreature {
     parentPartBp,
     prefix = '',
   }: {
-    position: Partial<RawAxisVec3>
+    position: Partial<Vec3>
     rotation: Partial<JointAxisVec3>
 
     bakedPartBps: BakedPartBlueprint[]

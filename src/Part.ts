@@ -2,7 +2,7 @@ import { Obj3d } from './Obj3d'
 import { ICreature, IJoint, IPart } from './@types'
 import { BakedPartBlueprint } from './@types/blueprint'
 import * as THREE from 'three'
-import { joltToThreeQuat } from './utils/vector'
+import { joltToThreeQuat, partToVec3 } from './utils/vector'
 import { degToRad, lerp, scale } from './utils/math'
 import { axisConfigs } from './constants/axes'
 import CreatureWorld from './CreatureWorld'
@@ -31,7 +31,13 @@ export class Part extends Obj3d implements IPart {
     super(
       CreatureWorld.physicsSystem
         .GetBodyLockInterfaceNoLock()
-        .TryGetBody(creature.ragdoll.GetBodyID(bp.idx))
+        .TryGetBody(creature.ragdoll.GetBodyID(bp.idx)),
+      {
+        y: bp.size.l,
+        x: bp.size.w || bp.size.l,
+        z: bp.size.t || bp.size.w || bp.size.l,
+      },
+      bp.shape
     )
 
     this.creature = creature
@@ -52,8 +58,10 @@ export class Part extends Obj3d implements IPart {
     const { body } = this
     bodies[id] = body
     parts[id] = this
+    // console.log(id)
 
-    body.GetMotionProperties().SetAngularDamping(10)
+    body.GetMotionProperties().SetAngularDamping(1000)
+    // body.GetMotionProperties().SetAngularDamping(10)
 
     const { Jolt } = CreatureWorld
 
@@ -213,6 +221,7 @@ export class Part extends Obj3d implements IPart {
           axisMultiplier - centeringMultiplier
 
         torque[jointAxis] = sumMultiplier
+        // torque[jointAxis] = 0
 
         let targetVelocityA = maxVelocity
 

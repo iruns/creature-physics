@@ -5,6 +5,9 @@ import {
   JointAxis,
   PartAxis,
   JointAxisVec3,
+  Vec3,
+  Quat,
+  PartAxisVec3,
 } from '../@types/axes'
 import { degToRad } from './math'
 import {
@@ -74,28 +77,56 @@ export function joltToThreeQuat(
 }
 
 // To Raw
-export function toRawVec3(v: JoltType.Vec3) {
-  return {
-    x: v.GetX(),
-    y: v.GetY(),
-    z: v.GetZ(),
-  }
+export function joltToVec3(
+  v: JoltType.Vec3,
+  to: Vec3 = { x: 0, y: 0, z: 0 }
+) {
+  to.x = v.GetX()
+  to.y = v.GetY()
+  to.z = v.GetZ()
+  return to
+}
+export function partToVec3(
+  v: PartAxisVec3,
+  to: Vec3 = { x: 0, y: 0, z: 0 }
+) {
+  to.x = v.w
+  to.y = v.l
+  to.z = v.t
+  return to
+}
+
+export function joltToQuat(
+  v: JoltType.Quat,
+  to: Quat = { x: 0, y: 0, z: 0, w: 0 }
+) {
+  to.x = v.GetX()
+  to.y = v.GetY()
+  to.z = v.GetZ()
+  to.w = v.GetW()
+  return to
 }
 
 // To Part
-export function toPartVec3(v: JoltType.Vec3) {
-  return {
-    w: v.GetX(),
-    l: v.GetY(),
-    t: v.GetZ(),
+export function joltToPartVec3(
+  v: JoltType.Vec3,
+  to: PartAxisVec3 = {
+    w: 0,
+    l: 0,
+    t: 0,
   }
+) {
+  to.w = v.GetX()
+  to.l = v.GetY()
+  to.t = v.GetZ()
+  return to
 }
 
-export function toScaledPartVec3(
+export function joltToScaledPartVec3(
   v: JoltType.Vec3,
   part: IPart
 ) {
-  const result = toPartVec3(v)
+  const result = joltToPartVec3(v)
 
   const { l, w, t } = part.bp.hSize
   if (l) result.l /= l

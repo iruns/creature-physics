@@ -1,10 +1,9 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/Addons.js'
-import type JoltType from 'jolt-physics'
 import {
   IPart,
   Contact,
-  PartShape,
+  Obj3dShape,
   VizUserObj,
   IObj3D,
   IJoint,
@@ -15,12 +14,7 @@ import {
   JointAxisVec3,
 } from '../@types/axes'
 import { degToRad, exponentiate } from './math'
-import {
-  partToThreeAxis,
-  joltToThreeVec3,
-  joltToThreeQuat,
-} from './vector'
-import CreatureWorld from '../CreatureWorld'
+import { partToThreeAxis } from './vector'
 
 export let container: HTMLElement
 export let scene: THREE.Scene
@@ -128,6 +122,49 @@ function onWindowResize() {
 
 // Add
 
+// Add a Jolt body to the world scene and dynamicObjects
+export function addToThreeScene(
+  obj3d: IObj3D,
+  color: number,
+  vizRadius = 0
+): VizUserObj {
+  const { x, y, z } = obj3d.size
+
+  const material = new THREE.MeshPhongMaterial({ color })
+  let geometry: THREE.BufferGeometry
+  const r = x / 2
+  switch (obj3d.shape) {
+    case Obj3dShape.Sphere:
+      geometry = new THREE.SphereGeometry(r)
+      break
+    case Obj3dShape.Cylinder:
+      geometry = new THREE.CylinderGeometry(r, r, y)
+      break
+    case Obj3dShape.Capsule:
+      geometry = new THREE.CapsuleGeometry(r, y)
+      break
+    default:
+      geometry = new THREE.BoxGeometry(x, y, z)
+      break
+  }
+
+  const mesh = new THREE.Mesh(geometry, material)
+  scene.add(mesh)
+
+  const threeObj: VizUserObj = {
+    mesh,
+    obj3d,
+
+    vizRadius,
+    axes: new THREE.AxesHelper(vizRadius),
+  }
+
+  threeObjs.push(threeObj)
+  obj3d.vizObj = threeObj
+
+  return threeObj
+}
+
 export function visualizePart(part: IPart): VizUserObj {
   const {
     bp: { size, shape, color, joint: jointBp },
@@ -136,9 +173,9 @@ export function visualizePart(part: IPart): VizUserObj {
   // set radius to be used in visualizations
   let vizRadius = 0
   switch (shape) {
-    case PartShape.Sphere:
-    case PartShape.Cylinder:
-    case PartShape.Capsule:
+    case Obj3dShape.Sphere:
+    case Obj3dShape.Cylinder:
+    case Obj3dShape.Capsule:
       vizRadius = size.w ?? size.l
       break
     default:
@@ -363,98 +400,6 @@ export function visualizePart(part: IPart): VizUserObj {
   return threeObj
 }
 
-// Add a Jolt body to the world scene and dynamicObjects
-export function addToThreeScene(
-  obj3d: IObj3D,
-  color: number,
-  vizRadius = 0
-): VizUserObj {
-  const { body } = obj3d
-  const mesh = getThreeMeshForBody(body, color)
-
-  mesh.userData.body = body
-  scene.add(mesh)
-
-  const threeObj: VizUserObj = {
-    mesh,
-    obj3d,
-
-    vizRadius,
-    axes: new THREE.AxesHelper(vizRadius),
-  }
-
-  threeObjs.push(threeObj)
-  obj3d.vizObj = threeObj
-
-  return threeObj
-}
-
-// Create a Three.js mesh for a Jolt body
-function getThreeMeshForBody(
-  body: JoltType.Body,
-  color: number
-): THREE.Mesh {
-  // Main solid mesh with shadows
-  const material = new THREE.MeshPhongMaterial({ color })
-  const shape = body.GetShape()
-  const geometry = createMeshForShape(shape)
-  const mesh = new THREE.Mesh(geometry, material)
-  mesh.castShadow = true
-  mesh.receiveShadow = true
-
-  // Wireframe overlay (no shadows, always on top)
-  const wireframeMaterial = new THREE.MeshBasicMaterial({
-    color: 0x000000,
-    wireframe: true,
-    depthTest: true, // set to false if you want it always visible
-    transparent: true,
-    opacity: 0.5,
-  })
-  const wireframeMesh = new THREE.Mesh(
-    geometry,
-    wireframeMaterial
-  )
-  wireframeMesh.castShadow = false
-  wireframeMesh.receiveShadow = false
-  mesh.add(wireframeMesh)
-
-  return mesh
-}
-
-// Create a Three.js mesh for a Jolt shape
-function createMeshForShape(
-  shape: JoltType.Shape
-): THREE.BufferGeometry {
-  const { Jolt } = CreatureWorld
-
-  let scale = new Jolt.Vec3(1, 1, 1)
-  let triContext = new Jolt.ShapeGetTriangles(
-    shape,
-    Jolt.AABox.prototype.sBiggest(),
-    shape.GetCenterOfMass(),
-    Jolt.Quat.prototype.sIdentity(),
-    scale
-  )
-  Jolt.destroy(scale)
-
-  let vertices = new Float32Array(
-    Jolt.HEAPF32.buffer,
-    triContext.GetVerticesData(),
-    triContext.GetVerticesSize() /
-      Float32Array.BYTES_PER_ELEMENT
-  )
-  let buffer = new THREE.BufferAttribute(
-    vertices,
-    3
-  ).clone()
-  Jolt.destroy(triContext)
-
-  let geometry = new THREE.BufferGeometry()
-  geometry.setAttribute('position', buffer)
-  geometry.computeVertexNormals()
-  return geometry
-}
-
 // Update
 
 export function render(deltaTime: number) {
@@ -464,8 +409,8 @@ export function render(deltaTime: number) {
     const { mesh, obj3d } = threeObjs[i]
     const { position, rotation, contacts } = obj3d
 
-    joltToThreeVec3(position, mesh.position)
-    joltToThreeQuat(rotation, mesh.quaternion)
+    mesh.position.copy(position)
+    mesh.quaternion.copy(rotation)
 
     allContacts.push(...contacts)
 

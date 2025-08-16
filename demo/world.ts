@@ -1,6 +1,6 @@
 import type JoltType from 'jolt-physics'
-import { IObj3D } from '../src/@types'
-import { RawAxisVec3 } from '../src/@types/axes'
+import { IObj3D, Obj3dShape } from '../src/@types'
+import { Vec3 } from '../src/@types/axes'
 import { Obj3d } from '../src/Obj3d'
 
 let jolt: JoltType.JoltInterface
@@ -55,12 +55,12 @@ export function initWorld(JoltArg: typeof JoltType) {
 }
 
 export function createBox(
-  size: RawAxisVec3,
-  position: RawAxisVec3,
+  size: Vec3,
+  position: Vec3,
   isStatic?: boolean
 ): IObj3D {
   const shape = new Jolt.BoxShape(
-    new Jolt.Vec3(size.x, size.y, size.z),
+    new Jolt.Vec3(size.x / 2, size.y / 2, size.z / 2),
     0.05,
     undefined
   )
@@ -82,13 +82,14 @@ export function createBox(
     Jolt.EActivation_Activate
   )
 
-  return new Obj3d(body)
+  return new Obj3d(body, size)
 }
 
-export function createFloor(size = 2): IObj3D {
+export function createFloor(size = 4): IObj3D {
+  const y = 0.1
   return createBox(
-    { x: size, y: 0.5, z: size },
-    { x: 0, y: -0.5, z: 0 },
+    { x: size, y, z: size },
+    { x: 0, y: -y, z: 0 },
     true
   )
 }

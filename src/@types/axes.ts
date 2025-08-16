@@ -15,6 +15,12 @@ export type AxisConfig = {
   joltAxis: JoltType.SixDOFConstraintSettings_EAxis
 }
 
-export type RawAxisVec3<T = number> = Record<RawAxis, T>
+export type Vec3<T = number> = Record<RawAxis, T>
+export type Quat = {
+  x: number
+  y: number
+  z: number
+  w: number
+}
 export type PartAxisVec3<T = number> = Record<PartAxis, T>
 export type JointAxisVec3<T = number> = Record<JointAxis, T>

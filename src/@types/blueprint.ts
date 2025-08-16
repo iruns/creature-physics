@@ -1,4 +1,4 @@
-import { PartShape } from '.'
+import { Obj3dShape } from '.'
 import {
   PartAxisVec3,
   AnchorValue,
@@ -13,7 +13,7 @@ export type PartBlueprint = {
   symmetrical?: boolean
 
   /** Defaults to Box */
-  shape?: PartShape
+  shape?: Obj3dShape
   size: {
     /** Length (y), or sphere radius, will be used for unset dimensions */
     l: number

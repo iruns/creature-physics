@@ -1,4 +1,4 @@
-import { PartShape } from '../src/@types'
+import { Obj3dShape } from '../src/@types'
 import { PartBlueprint } from '../src/@types/blueprint'
 
 const blueprint: PartBlueprint = {
@@ -8,7 +8,7 @@ const blueprint: PartBlueprint = {
     {
       id: 'lower-neck',
 
-      shape: PartShape.Cylinder,
+      shape: Obj3dShape.Cylinder,
       size: { l: 0.04, w: 0.07 },
       joint: {
         parentOffset: {
@@ -21,14 +21,14 @@ const blueprint: PartBlueprint = {
           l: -0.002,
           t: 0.02,
         },
-        // axis: { y: -70, p: -10, r: 80 },
-        // mirror: { y: 1, p: 1 },
-        // limits: { p: 10 },
+        axis: { p: -10 },
+        mirror: { y: 1, r: 1 },
+        limits: { y: 10, p: 20, r: 20 },
       },
       child: {
         id: 'upper-neck',
 
-        shape: PartShape.Cylinder,
+        shape: Obj3dShape.Cylinder,
         size: { l: 0.04, w: 0.07 },
         joint: {
           parentOffset: {
@@ -41,14 +41,14 @@ const blueprint: PartBlueprint = {
             l: -0.002,
             t: 0.02,
           },
-          // axis: { y: -70, p: -10, r: 80 },
-          // mirror: { y: 1, p: 1 },
-          // limits: { p: 10 },
+          axis: { p: -10 },
+          mirror: { y: 1, r: 1 },
+          limits: { y: 10, p: 20, r: 20 },
         },
         child: {
           id: 'head',
 
-          shape: PartShape.Capsule,
+          shape: Obj3dShape.Capsule,
           size: { l: 0.05, w: 0.15 },
           joint: {
             parentOffset: {
@@ -59,11 +59,11 @@ const blueprint: PartBlueprint = {
             childOffset: {
               from: { l: -1 },
               l: -0.02,
-              t: 0.04,
+              t: 0.05,
             },
-            // axis: { y: -70, p: -10, r: 80 },
-            // mirror: { y: 1, p: 1 },
-            // limits: { p: 10 },
+            axis: { p: -10 },
+            mirror: { y: 1, r: 1 },
+            limits: { y: 20, p: 40, r: 30 },
           },
         },
       },
@@ -82,7 +82,7 @@ const blueprint: PartBlueprint = {
         childOffset: { from: { l: -1, w: 1 }, l: -0 },
         axis: { y: -70, p: -10, r: 80 },
         mirror: { y: 1, p: 1 },
-        limits: { p: 10 },
+        limits: { y: 10, p: 10 },
       },
       child: {
         id: 'upper_arm',
@@ -95,9 +95,9 @@ const blueprint: PartBlueprint = {
             w: -0.01,
           },
           childOffset: { from: { l: -1 }, l: -0 },
-          axis: { y: -80, p: 40, r: -20 },
+          axis: { y: -40, p: 10, r: -20 },
           mirror: { p: 1 },
-          limits: { y: 120, p: 110, r: 40 },
+          limits: { y: 130, p: 110, r: 40 },
         },
         child: {
           id: 'lower_arm',
@@ -113,8 +113,8 @@ const blueprint: PartBlueprint = {
             id: 'hand',
             size: { l: 0.05, w: 0.04, t: 0.02 },
             joint: {
-              parentOffset: { from: { l: 1 } },
-              childOffset: { from: { l: -1 } },
+              parentOffset: { from: { l: 1, t: -1 } },
+              childOffset: { from: { l: -1, t: -1 } },
               axis: { y: 10, p: 10, r: 10 },
               mirror: { p: 1 },
               limits: { y: 20, p: 60 },

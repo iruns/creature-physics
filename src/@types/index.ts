@@ -6,8 +6,9 @@ import {
 } from './blueprint'
 import {
   JointAxisVec3,
-  RawAxisVec3,
+  Vec3,
   PartAxisVec3,
+  Quat,
 } from './axes'
 
 export interface IObj3D {
@@ -15,9 +16,14 @@ export interface IObj3D {
   body: JoltType.Body
   inverseMass: number
 
-  // TODO check if this can be changed to THREE or raw vec3s
-  position: JoltType.RVec3
-  rotation: JoltType.Quat
+  /** Defaults to Box */
+  shape?: Obj3dShape
+  size: Vec3
+
+  // for viz
+  position: Vec3
+  rotation: Quat
+  // for contact
   linearVelocity: JoltType.Vec3
   angularVelocity: JoltType.Vec3
 
@@ -29,7 +35,7 @@ export interface IObj3D {
   update(): void
 }
 
-export enum PartShape {
+export enum Obj3dShape {
   Sphere,
   Cylinder,
   Capsule,
@@ -81,7 +87,7 @@ export interface IJoint {
 export type RootPart = Omit<IPart, 'parent' | 'joint'>
 
 export interface Contact {
-  worldPosition: RawAxisVec3
+  worldPosition: Vec3
   position: PartAxisVec3
 
   strength: number

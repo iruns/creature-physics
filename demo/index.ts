@@ -1,6 +1,6 @@
 import initJolt from 'jolt-physics'
 import blueprint from '../blueprints/simpleHumanTop'
-import { IPart } from '../src/@types'
+import { IObj3D, IPart } from '../src/@types'
 import {
   addToThreeScene,
   camera,
@@ -14,6 +14,7 @@ import {
   bodyInterface,
   createFloor,
   updatePhysics,
+  createBox,
 } from './world'
 import { createJointControls } from './jointControl'
 import Creature from '../src/Creature'
@@ -39,21 +40,21 @@ window.addEventListener('DOMContentLoaded', () => {
     ContactHandler.addContactObj(floor)
     addToThreeScene(floor, 0xeeeeee)
 
-    // const size = 0.02
-    // const box = createBox(
-    //   { x: size, y: size, z: size },
-    //   { x: 1, y: size * 1, z: 0 }
-    // )
-    // updateables.push(box)
-    // addContactObj(box)
-    // addToThreeScene(box, 0xff8888)
+    const size = 0.08
+    const box = createBox(
+      { x: size, y: size, z: size },
+      { x: 1, y: size * 2, z: 0 }
+    )
+    updateables.push(box)
+    ContactHandler.addContactObj(box)
+    addToThreeScene(box, 0xff8888)
     // box.physicsObj.body.AddForce(new Jolt.Vec3(0, 80, 0))
     // box.physicsObj.body.AddTorque(new Jolt.Vec3(100, 0, 0))
 
     // Use the blueprint utility
     blueprint.density = 0
     const creature = new Creature({
-      position: { x: 0, y: 0.2, z: 0 },
+      position: { x: 0, y: 1, z: 0 },
       rotation: { y: 0, p: 0, r: 0 },
       blueprint,
     })
