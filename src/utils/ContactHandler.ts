@@ -1,6 +1,6 @@
 import type JoltType from 'jolt-physics'
 import { joltToVec3, joltToScaledPartVec3 } from './vector'
-import { IObj3D, IPart } from '../@types'
+import { IObj3D, ICreaturePart } from '../@types'
 
 export default class ContactHandler {
   static obj3ds: IObj3D[] = []
@@ -71,8 +71,8 @@ export default class ContactHandler {
     // if not between registered contact objects, skip
     if (!obj3dA || !obj3dB) return
 
-    const partA = obj3dA as IPart
-    const partB = obj3dB as IPart
+    const partA = obj3dA as ICreaturePart
+    const partB = obj3dB as ICreaturePart
 
     // if neither are Part, skip
     if (!partA.id && !partB.id) return

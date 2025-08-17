@@ -1,20 +1,20 @@
 import {
   ICreature,
-  IPart,
-  RootPart,
-  Obj3dShape,
+  ICreaturePart,
+  RootCreaturePart,
+  Obj3dShapeType,
 } from './@types'
 import { JointAxisVec3, Vec3 } from './@types/axes'
 import {
-  BakedJointBlueprint,
-  BakedPartBlueprint,
-  PartBlueprint,
+  BakedCreatureJointBlueprint,
+  BakedCreaturePartBlueprint,
+  CreaturePartBlueprint,
 } from './@types/blueprint'
 import JoltType from 'jolt-physics'
 import * as THREE from 'three'
-import { Part } from './Part'
+import { CreaturePart } from './CreaturePart'
 import {
-  defaultPartBp,
+  defaultMaterialBp,
   defaultJointBp,
 } from './constants/defaults'
 import { degToRad, getCenterOfMass } from './utils/math'
@@ -26,9 +26,9 @@ import { axisConfigs } from './constants/axes'
 import CreatureWorld from './CreatureWorld'
 
 export default class Creature implements ICreature {
-  root: RootPart
+  root: RootCreaturePart
   ragdoll: JoltType.Ragdoll
-  parts: Record<string, IPart> = {}
+  parts: Record<string, ICreaturePart> = {}
   bodies: Record<string, JoltType.Body> = {}
   joints: Record<string, JoltType.SixDOFConstraint> = {}
 
@@ -41,7 +41,7 @@ export default class Creature implements ICreature {
   }: {
     position: Partial<Vec3>
     rotation: Partial<JointAxisVec3>
-    blueprint: PartBlueprint
+    blueprint: CreaturePartBlueprint
     layer?: number
   }) {
     const { Jolt, physicsSystem } = CreatureWorld
@@ -51,7 +51,7 @@ export default class Creature implements ICreature {
     const mAxisY2 = new Jolt.Vec3(0, 0, 1)
 
     // Deeply clone the blueprint and process, applying world transforms
-    const bakedPartBps: BakedPartBlueprint[] = []
+    const bakedPartBps: BakedCreaturePartBlueprint[] = []
     const nameToIndex: Record<string, number> = {}
 
     this.bakePartBp({
@@ -87,20 +87,20 @@ export default class Creature implements ICreature {
       const settingsPart = settings.mParts.at(i)
 
       const {
-        shape: shapeType,
+        obj: objBp,
         hSize: { l, w, t },
       } = partBp
 
       let shape: JoltType.ConvexShape
 
-      switch (shapeType) {
-        case Obj3dShape.Sphere:
+      switch (objBp.shapeType) {
+        case Obj3dShapeType.Sphere:
           shape = new Jolt.SphereShape(l)
           break
-        case Obj3dShape.Cylinder:
+        case Obj3dShapeType.Cylinder:
           shape = new Jolt.CylinderShape(l, t, 0)
           break
-        case Obj3dShape.Capsule:
+        case Obj3dShapeType.Capsule:
           shape = new Jolt.CapsuleShape(l, t)
           break
         default:
@@ -110,12 +110,12 @@ export default class Creature implements ICreature {
 
       // apply properties
       const density =
-        partBp.density ?? defaultPartBp.density
+        objBp.density ?? defaultMaterialBp.density
       shape.SetDensity(density)
       settingsPart.mFriction =
-        partBp.friction ?? defaultPartBp.friction
+        objBp.friction ?? defaultMaterialBp.friction
       settingsPart.mRestitution =
-        partBp.restitution ?? defaultPartBp.restitution
+        objBp.restitution ?? defaultMaterialBp.restitution
 
       settingsPart.SetShape(shape)
       settingsPart.mRotation = new Jolt.Quat(
@@ -235,7 +235,7 @@ export default class Creature implements ICreature {
     ragdoll.AddToPhysicsSystem(Jolt.EActivation_Activate)
 
     // Create the actual Parts
-    const root = (this.root = new Part({
+    const root = (this.root = new CreaturePart({
       creature: this,
       bp: bakedPartBps[0],
     }))
@@ -245,7 +245,7 @@ export default class Creature implements ICreature {
 
     let sumMass = 0
     for (const name in parts) {
-      const inverseMass = parts[name].inverseMass
+      const inverseMass = parts[name].obj.inverseMass
       sumMass += inverseMass ? 1 / inverseMass : 0
     }
 
@@ -266,11 +266,11 @@ export default class Creature implements ICreature {
     position: Partial<Vec3>
     rotation: Partial<JointAxisVec3>
 
-    bakedPartBps: BakedPartBlueprint[]
+    bakedPartBps: BakedCreaturePartBlueprint[]
     nameToIndex: Record<string, number>
 
-    partBp: PartBlueprint
-    parentPartBp?: BakedPartBlueprint
+    partBp: CreaturePartBlueprint
+    parentPartBp?: BakedCreaturePartBlueprint
     prefix?: string
   }) {
     const { child, children, symmetrical, size } = partBp
@@ -278,20 +278,26 @@ export default class Creature implements ICreature {
       children || (child ? [child] : undefined)
 
     // if symmetrical, create a copy for the right side
-    let symPartBp: PartBlueprint | undefined
+    let symPartBp: CreaturePartBlueprint | undefined
     if (symmetrical) {
       symPartBp = JSON.parse(
         JSON.stringify(partBp)
-      ) as PartBlueprint
+      ) as CreaturePartBlueprint
     }
 
     const l = size.l / 2
     const w = (size.w ?? 0) / 2 || l
     const t = (size.t ?? 0) / 2 || w
 
-    const bakedPartBp: BakedPartBlueprint = {
-      ...defaultPartBp,
+    const bakedPartBp: BakedCreaturePartBlueprint = {
       ...partBp,
+      obj: {
+        ...defaultMaterialBp,
+        ...partBp.obj,
+        ...{
+          size: { y: l * 2, x: w * 2, z: t * 2 },
+        },
+      },
       idx: bakedPartBps.length,
 
       parent: parentPartBp,
@@ -348,7 +354,7 @@ export default class Creature implements ICreature {
             (size[partAxis] ?? 0)
       })
 
-      const bakedJointBp: BakedJointBlueprint = {
+      const bakedJointBp: BakedCreatureJointBlueprint = {
         ...defaultJointBp,
         ...jointBp,
         ...{
@@ -469,11 +475,16 @@ export default class Creature implements ICreature {
 
   private setBaseTorques(
     sumMass: number,
-    part: IPart,
+    part: ICreaturePart,
     toEndBodies: JoltType.Body[]
   ) {
     const { bodies } = this
-    const { inverseMass, body, children, joint, bp } = part
+    const {
+      obj: { inverseMass, body },
+      children,
+      joint,
+      bp,
+    } = part
 
     let otherBodies: JoltType.Body[] = []
 

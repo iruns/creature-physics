@@ -1,7 +1,8 @@
 import type JoltType from 'jolt-physics'
-import { IObj3D, Obj3dShape } from '../src/@types'
+import { IObj3D, Obj3dShapeType } from '../src/@types'
 import { Vec3 } from '../src/@types/axes'
 import { Obj3d } from '../src/Obj3d'
+import { Obj3DBp } from '../src/@types/blueprint'
 
 let jolt: JoltType.JoltInterface
 export let Jolt: typeof JoltType
@@ -55,10 +56,15 @@ export function initWorld(JoltArg: typeof JoltType) {
 }
 
 export function createBox(
-  size: Vec3,
-  position: Vec3,
-  isStatic?: boolean
+  bp: Obj3DBp,
+  position: Vec3
 ): IObj3D {
+  // return new Obj3d({ bp, position })
+
+  const { size, shapeType, layer } = bp
+  const density = bp.density ?? 1000
+  const isStatic = density ? false : true
+
   const shape = new Jolt.BoxShape(
     new Jolt.Vec3(size.x / 2, size.y / 2, size.z / 2),
     0.05,
@@ -82,15 +88,21 @@ export function createBox(
     Jolt.EActivation_Activate
   )
 
-  return new Obj3d(body, size)
+  return new Obj3d({ body, bp })
 }
 
 export function createFloor(size = 4): IObj3D {
   const y = 0.1
   return createBox(
-    { x: size, y, z: size },
-    { x: 0, y: -y, z: 0 },
-    true
+    {
+      size: {
+        x: size,
+        y,
+        z: size,
+      },
+      density: 0,
+    },
+    { x: 0, y: -y, z: 0 }
   )
 }
 

@@ -1,6 +1,6 @@
 import initJolt from 'jolt-physics'
 import blueprint from '../blueprints/simpleHumanTop'
-import { IObj3D, IPart } from '../src/@types'
+import { IObj3D, ICreaturePart } from '../src/@types'
 import {
   addToThreeScene,
   camera,
@@ -36,23 +36,28 @@ window.addEventListener('DOMContentLoaded', () => {
     ContactHandler.init(Jolt, physicsSystem)
 
     const floor = createFloor()
-    updateables.push(floor)
     ContactHandler.addContactObj(floor)
-    addToThreeScene(floor, 0xeeeeee)
+    addToThreeScene(floor)
 
     const size = 0.08
     const box = createBox(
-      { x: size, y: size, z: size },
+      {
+        size: { x: size, y: size, z: size },
+        color: 0xff0000,
+      },
       { x: 1, y: size * 2, z: 0 }
     )
     updateables.push(box)
     ContactHandler.addContactObj(box)
-    addToThreeScene(box, 0xff8888)
+    addToThreeScene(box)
     // box.physicsObj.body.AddForce(new Jolt.Vec3(0, 80, 0))
     // box.physicsObj.body.AddTorque(new Jolt.Vec3(100, 0, 0))
 
     // Use the blueprint utility
-    blueprint.density = 0
+    let rootObjBp = blueprint.obj
+    if (!rootObjBp) rootObjBp = blueprint.obj = {}
+    rootObjBp.density = 0
+
     const creature = new Creature({
       position: { x: 0, y: 1, z: 0 },
       rotation: { y: 0, p: 0, r: 0 },
@@ -60,7 +65,7 @@ window.addEventListener('DOMContentLoaded', () => {
     })
     updateables.push(creature)
     creature.root.applyDown((part) =>
-      ContactHandler.addContactObj(part)
+      ContactHandler.addContactObj(part.obj)
     )
     const { parts } = creature
 
@@ -68,7 +73,7 @@ window.addEventListener('DOMContentLoaded', () => {
     createJointControls(parts)
 
     // Recursively add bodies to Three.js scene using blueprint and bodies map
-    function toInterface(part: IPart) {
+    function toInterface(part: ICreaturePart) {
       const { children } = part
 
       // If this part has a joint, visualize its limits at the joint anchor

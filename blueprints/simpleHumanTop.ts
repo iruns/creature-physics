@@ -1,14 +1,16 @@
-import { Obj3dShape } from '../src/@types'
-import { PartBlueprint } from '../src/@types/blueprint'
+import { Obj3dShapeType } from '../src/@types'
+import { CreaturePartBlueprint } from '../src/@types/blueprint'
 
-const blueprint: PartBlueprint = {
+const blueprint: CreaturePartBlueprint = {
   id: 'chest',
   size: { l: 0.2, w: 0.3, t: 0.08 },
   children: [
     {
       id: 'lower-neck',
 
-      shape: Obj3dShape.Cylinder,
+      obj: {
+        shapeType: Obj3dShapeType.Cylinder,
+      },
       size: { l: 0.04, w: 0.07 },
       joint: {
         parentOffset: {
@@ -28,7 +30,9 @@ const blueprint: PartBlueprint = {
       child: {
         id: 'upper-neck',
 
-        shape: Obj3dShape.Cylinder,
+        obj: {
+          shapeType: Obj3dShapeType.Cylinder,
+        },
         size: { l: 0.04, w: 0.07 },
         joint: {
           parentOffset: {
@@ -48,7 +52,9 @@ const blueprint: PartBlueprint = {
         child: {
           id: 'head',
 
-          shape: Obj3dShape.Capsule,
+          obj: {
+            shapeType: Obj3dShapeType.Capsule,
+          },
           size: { l: 0.05, w: 0.15 },
           joint: {
             parentOffset: {

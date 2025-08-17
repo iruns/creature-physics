@@ -1,6 +1,6 @@
 import * as THREE from 'three'
 import type JoltType from 'jolt-physics'
-import { IPart } from '../@types'
+import { ICreaturePart } from '../@types'
 import {
   JointAxis,
   PartAxis,
@@ -124,7 +124,7 @@ export function joltToPartVec3(
 
 export function joltToScaledPartVec3(
   v: JoltType.Vec3,
-  part: IPart
+  part: ICreaturePart
 ) {
   const result = joltToPartVec3(v)
 

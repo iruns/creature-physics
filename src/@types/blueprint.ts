@@ -1,19 +1,25 @@
-import { Obj3dShape } from '.'
+import { Obj3dShapeType } from '.'
 import {
   PartAxisVec3,
   AnchorValue,
   JointAxisVec3,
+  Vec3,
 } from './axes'
 import * as THREE from 'three'
 
-// Blueprint
-export type PartBlueprint = {
+export type Obj3DBp = {
+  /** Defaults to Box */
+  shapeType?: Obj3dShapeType
+  size: Vec3
+  layer?: number
+} & MaterialBp
+
+export type CreaturePartBlueprint = {
   id: string
 
   symmetrical?: boolean
 
-  /** Defaults to Box */
-  shape?: Obj3dShape
+  obj?: Omit<Obj3DBp, 'size'>
   size: {
     /** Length (y), or sphere radius, will be used for unset dimensions */
     l: number
@@ -23,24 +29,21 @@ export type PartBlueprint = {
     t?: number
   }
 
-  child?: PartBlueprint
-  children?: PartBlueprint[]
+  child?: CreaturePartBlueprint
+  children?: CreaturePartBlueprint[]
 
   // Only for non-root parts
-  joint?: JointBlueprint
-} & Partial<PartBlueprintDefaults>
-
-export interface PartBlueprintDefaults extends Material {
-  color: number
+  joint?: CreatureJointBlueprint
 }
 
-export interface Material {
-  density: number
-  friction: number
-  restitution: number
+export interface MaterialBp {
+  color?: number
+  density?: number
+  friction?: number
+  restitution?: number
 }
 
-export type JointBlueprint = {
+export type CreatureJointBlueprint = {
   /** Anchor in parent local space, with optional "at" as the origin */
   parentOffset: Partial<PartAxisVec3> & {
     from?: Partial<PartAxisVec3<AnchorValue>>
@@ -55,9 +58,9 @@ export type JointBlueprint = {
   mirror?: Partial<JointAxisVec3<1 | 0 | boolean>>
   /** Yaw, pitch, roll limits in degrees, relative to axis */
   limits?: Partial<JointAxisVec3>
-} & Partial<JointBlueprintDefaults>
+} & Partial<CreatureJointBlueprintDefaults>
 
-export interface JointBlueprintDefaults {
+export interface CreatureJointBlueprintDefaults {
   /** Factors of mass * distance that will be used for baseTorque.
    * Inheritable
    */
@@ -91,38 +94,39 @@ export interface JointBlueprintDefaults {
 }
 
 // Baked blueprint, pre conversion to creature
-export type BakedPartBlueprint = Omit<
-  PartBlueprint,
+export type BakedCreaturePartBlueprint = Omit<
+  CreaturePartBlueprint,
   'parent' | 'children'
-> &
-  PartBlueprintDefaults & {
-    idx: number
+> & {
+  idx: number
 
-    hSize: PartAxisVec3
+  obj: Obj3DBp
+  hSize: PartAxisVec3
 
-    parent?: BakedPartBlueprint
-    children?: BakedPartBlueprint[]
+  parent?: BakedCreaturePartBlueprint
+  children?: BakedCreaturePartBlueprint[]
 
-    worldPosition: THREE.Vector3
-    worldRotation: THREE.Quaternion
+  worldPosition: THREE.Vector3
+  worldRotation: THREE.Quaternion
 
-    joint?: BakedJointBlueprint
-  }
+  joint?: BakedCreatureJointBlueprint
+}
 
-export type BakedJointBlueprint = JointBlueprint &
-  JointBlueprintDefaults & {
-    parentOffset: JointBlueprint['parentOffset'] & {
-      baked: THREE.Vector3
+export type BakedCreatureJointBlueprint =
+  CreatureJointBlueprint &
+    CreatureJointBlueprintDefaults & {
+      parentOffset: CreatureJointBlueprint['parentOffset'] & {
+        baked: THREE.Vector3
+      }
+      childOffset: CreatureJointBlueprint['parentOffset'] & {
+        baked: THREE.Vector3
+      }
+
+      axis: NonNullable<CreatureJointBlueprint['axis']>
+      mirror: NonNullable<CreatureJointBlueprint['mirror']>
+      limits: NonNullable<CreatureJointBlueprint['limits']>
+
+      rotation: THREE.Quaternion
+      yawAxis: THREE.Vector3
+      twistAxis: THREE.Vector3
     }
-    childOffset: JointBlueprint['parentOffset'] & {
-      baked: THREE.Vector3
-    }
-
-    axis: NonNullable<JointBlueprint['axis']>
-    mirror: NonNullable<JointBlueprint['mirror']>
-    limits: NonNullable<JointBlueprint['limits']>
-
-    rotation: THREE.Quaternion
-    yawAxis: THREE.Vector3
-    twistAxis: THREE.Vector3
-  }

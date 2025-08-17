@@ -1,10 +1,10 @@
-import { IPart } from '../src/@types'
+import { ICreaturePart } from '../src/@types'
 import { axisConfigs } from '../src/constants/axes'
 
 // Store per-part torques to be applied each frame
 // Change: Part.torques is Record<string, THREE.Vector3>
 export function createJointControls(
-  parts: Record<string, IPart>
+  parts: Record<string, ICreaturePart>
 ) {
   const lCol = document.getElementById(
     'joint-control-col-l'

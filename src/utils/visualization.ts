@@ -1,9 +1,9 @@
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/Addons.js'
 import {
-  IPart,
+  ICreaturePart,
   Contact,
-  Obj3dShape,
+  Obj3dShapeType,
   VizUserObj,
   IObj3D,
   IJoint,
@@ -124,23 +124,23 @@ function onWindowResize() {
 
 // Add a Jolt body to the world scene and dynamicObjects
 export function addToThreeScene(
-  obj3d: IObj3D,
-  color: number,
+  obj: IObj3D,
   vizRadius = 0
 ): VizUserObj {
-  const { x, y, z } = obj3d.size
+  const { size, shapeType, color = 0x9999999 } = obj.bp
+  const { x, y, z } = size
 
   const material = new THREE.MeshPhongMaterial({ color })
   let geometry: THREE.BufferGeometry
   const r = x / 2
-  switch (obj3d.shape) {
-    case Obj3dShape.Sphere:
+  switch (shapeType) {
+    case Obj3dShapeType.Sphere:
       geometry = new THREE.SphereGeometry(r)
       break
-    case Obj3dShape.Cylinder:
+    case Obj3dShapeType.Cylinder:
       geometry = new THREE.CylinderGeometry(r, r, y)
       break
-    case Obj3dShape.Capsule:
+    case Obj3dShapeType.Capsule:
       geometry = new THREE.CapsuleGeometry(r, y)
       break
     default:
@@ -153,29 +153,34 @@ export function addToThreeScene(
 
   const threeObj: VizUserObj = {
     mesh,
-    obj3d,
-
+    obj,
     vizRadius,
     axes: new THREE.AxesHelper(vizRadius),
   }
 
   threeObjs.push(threeObj)
-  obj3d.vizObj = threeObj
+  obj.vizObj = threeObj
 
   return threeObj
 }
 
-export function visualizePart(part: IPart): VizUserObj {
+export function visualizePart(
+  part: ICreaturePart
+): VizUserObj {
   const {
-    bp: { size, shape, color, joint: jointBp },
+    bp: {
+      size,
+      obj: { shapeType },
+      joint: jointBp,
+    },
   } = part
 
   // set radius to be used in visualizations
   let vizRadius = 0
-  switch (shape) {
-    case Obj3dShape.Sphere:
-    case Obj3dShape.Cylinder:
-    case Obj3dShape.Capsule:
+  switch (shapeType) {
+    case Obj3dShapeType.Sphere:
+    case Obj3dShapeType.Cylinder:
+    case Obj3dShapeType.Capsule:
       vizRadius = size.w ?? size.l
       break
     default:
@@ -184,7 +189,9 @@ export function visualizePart(part: IPart): VizUserObj {
       break
   }
 
-  const threeObj = addToThreeScene(part, color, vizRadius)
+  const threeObj = addToThreeScene(part.obj, vizRadius)
+  threeObj.part = part
+
   const { mesh } = threeObj
 
   mesh.traverse((obj: any) => {
@@ -218,7 +225,7 @@ export function visualizePart(part: IPart): VizUserObj {
 
   const limitRadius = vizRadius * 1
 
-  const parentMesh = part.parent?.vizObj?.mesh
+  const parentMesh = part.parent?.obj.vizObj?.mesh
 
   // if y and/or p
   if (y || p) {
@@ -406,8 +413,12 @@ export function render(deltaTime: number) {
   const allContacts: Contact[] = []
 
   for (let i = 0; i < threeObjs.length; i++) {
-    const { mesh, obj3d } = threeObjs[i]
-    const { position, rotation, contacts } = obj3d
+    const vizObj = threeObjs[i]
+
+    const { mesh, obj, part } = vizObj
+    if (!obj) continue
+
+    const { position, rotation, contacts } = obj
 
     mesh.position.copy(position)
     mesh.quaternion.copy(rotation)
@@ -415,7 +426,8 @@ export function render(deltaTime: number) {
     allContacts.push(...contacts)
 
     // if has joint, update the force arrows
-    const { joint, vizObj } = obj3d as IPart
+    if (!part) continue
+    const { joint } = part
     if (vizObj?.torque && vizObj?.lambda && joint)
       updateJointForces(joint, vizObj.torque, vizObj.lambda)
   }

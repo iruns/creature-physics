@@ -1,21 +1,27 @@
 import { Obj3d } from './Obj3d'
-import { ICreature, IJoint, IPart } from './@types'
-import { BakedPartBlueprint } from './@types/blueprint'
+import {
+  ICreature,
+  IJoint,
+  ICreaturePart,
+  IObj3D,
+} from './@types'
+import { BakedCreaturePartBlueprint } from './@types/blueprint'
 import * as THREE from 'three'
-import { joltToThreeQuat, partToVec3 } from './utils/vector'
+import { joltToThreeQuat } from './utils/vector'
 import { degToRad, lerp, scale } from './utils/math'
 import { axisConfigs } from './constants/axes'
 import CreatureWorld from './CreatureWorld'
 
-export class Part extends Obj3d implements IPart {
+export class CreaturePart implements ICreaturePart {
   creature: ICreature
+  obj: IObj3D
 
-  bp: BakedPartBlueprint
+  bp: BakedCreaturePartBlueprint
   id: string
 
-  children?: Record<string, IPart>
+  children?: Record<string, ICreaturePart>
   // Only for non-root parts
-  parent?: IPart
+  parent?: ICreaturePart
 
   joint?: IJoint
 
@@ -25,20 +31,15 @@ export class Part extends Obj3d implements IPart {
     parent,
   }: {
     creature: ICreature
-    bp: BakedPartBlueprint
-    parent?: IPart
+    bp: BakedCreaturePartBlueprint
+    parent?: ICreaturePart
   }) {
-    super(
-      CreatureWorld.physicsSystem
+    this.obj = new Obj3d({
+      body: CreatureWorld.physicsSystem
         .GetBodyLockInterfaceNoLock()
         .TryGetBody(creature.ragdoll.GetBodyID(bp.idx)),
-      {
-        y: bp.size.l,
-        x: bp.size.w || bp.size.l,
-        z: bp.size.t || bp.size.w || bp.size.l,
-      },
-      bp.shape
-    )
+      bp: bp.obj,
+    })
 
     this.creature = creature
     this.parent = parent
@@ -55,7 +56,7 @@ export class Part extends Obj3d implements IPart {
     this.bp = bp
     this.id = id
 
-    const { body } = this
+    const { body } = this.obj
     bodies[id] = body
     parts[id] = this
     // console.log(id)
@@ -103,7 +104,7 @@ export class Part extends Obj3d implements IPart {
       this.children = {}
       const { children } = this
       childBps.forEach((childBp) => {
-        children[childBp.id] = new Part({
+        children[childBp.id] = new CreaturePart({
           creature,
           bp: childBp,
           parent: this,
@@ -113,7 +114,7 @@ export class Part extends Obj3d implements IPart {
   }
 
   update(): void {
-    super.update()
+    this.obj.update()
 
     const velocity = new THREE.Vector3()
 
@@ -221,7 +222,6 @@ export class Part extends Obj3d implements IPart {
           axisMultiplier - centeringMultiplier
 
         torque[jointAxis] = sumMultiplier
-        // torque[jointAxis] = 0
 
         let targetVelocityA = maxVelocity
 
@@ -257,7 +257,7 @@ export class Part extends Obj3d implements IPart {
       for (const id in children) children[id].update()
   }
 
-  applyDown(cb: (part: IPart) => void): void {
+  applyDown(cb: (part: ICreaturePart) => void): void {
     cb(this)
     const { children } = this
     if (children)
